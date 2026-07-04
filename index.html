@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARG Pipeline Explorer — The Elusive Resistome</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --bg:#f7f8f7; --panel:#ffffff; --panel-2:#eef0ee; --line:#dde2de;
+    --ink:#1a2b28; --ink-dim:#5c6b66;
+    --teal:#1d3557; --amber:#2a9d8f; --coral:#e76f51;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  ::selection{background:var(--teal);color:#ffffff;}
+
+  #flow{max-width:1240px;margin:0 auto;padding:0 24px;}
+  .flow-section{padding:56px 0;border-bottom:1px solid var(--line);}
+  .flow-section:last-child{border-bottom:none;}
+  .flow-back{
+    display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:var(--ink-dim);background:none;border:none;cursor:pointer;padding:0;margin-bottom:22px;
+  }
+  .flow-back:hover{color:var(--teal);}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start;}
+
+  h2{font-family:'Fraunces',serif;font-size:26px;margin:0 0 6px;}
+  .sub{color:var(--ink-dim);font-size:14px;line-height:1.6;max-width:680px;margin:0 0 26px;}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:20px;}
+  .card h3{font-family:'Fraunces',serif;font-size:16.5px;margin:0 0 4px;}
+  .card .desc{font-size:13px;color:var(--ink-dim);line-height:1.55;margin:0 0 14px;max-width:640px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media (max-width:1000px){.grid2{grid-template-columns:1fr;}}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin-bottom:18px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:16px 18px;}
+  .control{display:flex;flex-direction:column;gap:6px;min-width:150px;}
+  .control label{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--ink-dim);}
+  select, .msbox{
+    background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;
+    font-family:'Inter',sans-serif;font-size:12.5px;padding:6px 8px;
+  }
+  select[multiple]{min-height:96px;}
+  .checklist{
+    max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:4px;
+    padding:6px 10px;background:var(--bg);
+  }
+  .check-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;cursor:pointer;color:var(--ink);}
+  .check-row input{accent-color:var(--teal);cursor:pointer;flex:0 0 auto;}
+  .check-row span{flex:1;}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;max-width:280px;}
+  .chip{
+    font-size:11px;font-family:'JetBrains Mono',monospace;padding:4px 8px;border-radius:12px;
+    background:var(--bg);border:1px solid var(--line);color:var(--ink-dim);cursor:pointer;user-select:none;
+  }
+  .chip.on{color:#ffffff;background:var(--teal);border-color:var(--teal);font-weight:700;}
+  input[type=range]{accent-color:var(--teal);}
+  .toggle-btn{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--bg);color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:4px;padding:6px 12px;cursor:pointer;
+  }
+  .toggle-btn.on{background:var(--teal);color:#ffffff;border-color:var(--teal);font-weight:700;}
+
+  .plotwrap{width:100%;}
+  .loading{color:var(--ink-dim);font-size:13px;font-family:'JetBrains Mono',monospace;padding:40px;text-align:center;}
+
+  table.datatable{width:100%;border-collapse:collapse;font-size:13px;}
+  table.datatable th, table.datatable td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;}
+  table.datatable th{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.03em;}
+  table.datatable tr:hover td{background:var(--panel-2);}
+  .table-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px;}
+  .table-toolbar input[type=text]{
+    background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:7px 10px;
+    font-size:13px;flex:1;max-width:280px;
+  }
+  .pager{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12.5px;color:var(--ink-dim);}
+  .pager button{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:4px;
+    padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;}
+  .pager button:disabled{opacity:.35;cursor:default;}
+
+  a{color:var(--teal);}
+  .stat-row{display:flex;gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:22px 0;}
+  .stat{flex:1;padding:16px 18px;border-right:1px solid var(--line);}
+  .stat:last-child{border-right:none;}
+  .stat .n{font-family:'Fraunces',serif;font-size:28px;color:var(--coral);}
+  .stat .n.teal{color:var(--teal);} .stat .n.amber{color:var(--amber);}
+  .stat .l{font-size:11.5px;color:var(--ink-dim);margin-top:6px;line-height:1.4;}
+  .footnote{font-size:11.5px;color:var(--ink-dim);margin-top:10px;line-height:1.5;}
+  ul.plain{padding-left:18px;font-size:14px;line-height:1.7;color:#33403c;}
+
+  /* ---- guided flow controls ---- */
+  .wizard-actions{display:flex;justify-content:flex-end;margin-top:28px;gap:12px;}
+  .btn-primary{
+    font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.02em;
+    background:var(--teal);color:#ffffff;border:none;border-radius:6px;padding:12px 22px;cursor:pointer;
+  }
+  .btn-primary:hover{opacity:.9;}
+  .btn-secondary{
+    font-family:'JetBrains Mono',monospace;font-size:13px;background:none;color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:6px;padding:12px 22px;cursor:pointer;
+  }
+  .btn-secondary:hover{color:var(--ink);}
+  .choice-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:26px 0;}
+  @media (max-width:640px){.choice-cards{grid-template-columns:1fr;}}
+  .choice-card{
+    background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:22px;
+    cursor:pointer;text-align:left;
+  }
+  .choice-card:hover{border-color:var(--ink-dim);}
+  .choice-card.selected{border-color:var(--teal);background:var(--panel-2);}
+  .choice-card h3{font-family:'Fraunces',serif;font-size:18px;margin:0 0 8px;color:var(--ink);}
+  .choice-card p{font-size:13px;color:var(--ink-dim);line-height:1.55;margin:0;}
+  .habitat-picker{margin-top:4px;}
+  .habitat-picker select{width:100%;padding:10px;font-size:13.5px;}
+
+  /* ---- spotlight tutorial ---- */
+  .tutorial-spotlight{
+    position:relative;z-index:9999;
+    box-shadow:0 0 0 4px var(--teal), 0 0 0 9999px rgba(0,0,0,0.78);
+    border-radius:10px;
+  }
+  .tutorial-tip{
+    position:fixed;z-index:10000;background:var(--panel);border:1px solid var(--teal);
+    border-radius:8px;padding:16px 18px;max-width:340px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.6);font-size:13.5px;line-height:1.55;color:var(--ink);
+  }
+  .tutorial-tip ul{margin:4px 0 0;padding-left:18px;}
+  .tutorial-tip li{margin-bottom:8px;}
+  .tutorial-tip li:last-child{margin-bottom:0;}
+  .tutorial-tip-actions{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;}
+  .tutorial-tip-ok{
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;
+    background:var(--teal);color:#ffffff;border:none;border-radius:5px;padding:8px 16px;cursor:pointer;
+  }
+  .tutorial-tip-skip{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-dim);
+    background:none;border:none;cursor:pointer;padding:8px 4px;text-decoration:underline;
+  }
+  .tutorial-tip-skip:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="flow">
+  <section class="flow-section" id="sec-intro">
+    <p class="loading">Loading dataset…</p>
+  </section>
+</div>
+
+<script>
+const DATA_FILES = [
+  "tool_meta","arg_counts","gene_class_proportion","gene_class_order",
+  "jaccard","jaccard_full","identity_distribution","identity_by_class",
+  "abundance_summary","richness_summary","habitat_n_samples","abundance_jitter_sample",
+  "abundance_class_summary","pan_resistome","core_resistome","csc","table_s1_samples",
+  "habitat_arg_counts","habitat_gene_class_proportion","habitat_jaccard_full",
+  "habitat_identity_distribution","habitat_identity_by_class","habitat_csc"
+];
+
+const DB_COLOR = {" ":"#1B9E77","  ":"#D95F02","   ":"#7570B3","    ":"#E7298A",
+                  "CARD":"#E6AB02","NCBI":"#66A61E","ResFinder":"#666666"};
+
+let DATA = {};
+let ANALYSIS_MODE = null;   // 'general' | 'habitat'
+let CHOSEN_HABITAT = null;
+let TUTORIAL_SHOWN = false;
+let TUTORIAL_GC_SHOWN = false;
+let TUTORIAL_HAB_SHOWN = false;
+let TUTORIAL_HAB_GC_SHOWN = false;
+let TUTORIAL_CSC_SHOWN = false;
+let TUTORIAL_HAB_CSC_SHOWN = false;
+let TUTORIAL_AB_SHOWN = false;
+let TUTORIAL_PC_SHOWN = false;
+
+function fromColumnar(obj){
+  const {columns, data} = obj;
+  return data.map(row => Object.fromEntries(columns.map((c,i)=>[c,row[i]])));
+}
+
+async function loadAll(){
+  const entries = await Promise.all(DATA_FILES.map(async name=>{
+    const res = await fetch(`data/${name}.json`);
+    const json = await res.json();
+    return [name, Array.isArray(json) ? json : (json.columns ? fromColumnar(json) : json)];
+  }));
+  entries.forEach(([k,v])=>DATA[k]=v);
+}
+
+function uniq(arr, key){ return [...new Set(arr.map(d=>key?d[key]:d))]; }
+
+function getOrCreateSection(id){
+  let el = document.getElementById(id);
+  if(!el){
+    el = document.createElement('section');
+    el.className = 'flow-section';
+    el.id = id;
+    document.getElementById('flow').appendChild(el);
+  }
+  return el;
+}
+
+function scrollToSection(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Sequential spotlight tour: steps = [{el, text}]. Shades everything except
+// the current target (via a huge-spread box-shadow on the target itself),
+// shows a message bubble near it, and waits for "OK" before advancing.
+function runSpotlightTour(steps, onDone){
+  let i = 0;
+  function cleanup(el){
+    el.classList.remove('tutorial-spotlight');
+    document.querySelectorAll('.tutorial-tip').forEach(t=>t.remove());
+  }
+  function showStep(){
+    if(i >= steps.length){ if(onDone) onDone(); return; }
+    const {el, text} = steps[i];
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(()=>{
+      el.classList.add('tutorial-spotlight');
+      const tip = document.createElement('div');
+      tip.className = 'tutorial-tip';
+      tip.innerHTML = `<div>${text}</div>
+        <div class="tutorial-tip-actions">
+          <button class="tutorial-tip-skip" type="button">Skip tutorial</button>
+          <button class="tutorial-tip-ok" type="button">OK</button>
+        </div>`;
+      document.body.appendChild(tip);
+
+      const r = el.getBoundingClientRect();
+      const tipWidth = 340;
+      let left = r.left + r.width/2 - tipWidth/2;
+      left = Math.max(16, Math.min(left, window.innerWidth - tipWidth - 16));
+      let top = r.bottom + 16;
+      if(top + 140 > window.innerHeight) top = Math.max(16, r.top - 156);
+      tip.style.left = left+'px';
+      tip.style.top = top+'px';
+
+      tip.querySelector('.tutorial-tip-ok').addEventListener('click', ()=>{
+        cleanup(el);
+        i++;
+        showStep();
+      });
+      tip.querySelector('.tutorial-tip-skip').addEventListener('click', ()=>{
+        cleanup(el);
+        // Skipping ends this tour entirely -- no further steps, no chained onDone.
+      });
+    }, 350);
+  }
+  showStep();
+}
+
+
+loadAll().then(()=>{
+  buildToolLookups();
+  renderIntroSection(document.getElementById('sec-intro'));
+}).catch(err=>{
+  document.getElementById('sec-intro').innerHTML = '<p class="loading">Failed to load data: '+err.message+'</p>';
+});
+</script>
+<script src="tabs.js"></script>
+</body>
+</html>
