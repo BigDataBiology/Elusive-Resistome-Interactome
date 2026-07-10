@@ -553,13 +553,13 @@ function renderAnalysisSection(el, habitat, navKey){
 
       <div class="card" id="${P}card-identity">
         <h3>Identity Distribution</h3>
-        <p class="desc">Identity level density for the unigenes reported as ARG against the reference gene. fARGene and most of AMRFinder ARGs are based on HMM models, not identity level reported.</p>
+        <p class="desc">Identity level against the reference genes. fARGene and most of AMRFinder ARGs use HMMs; no identity level is reported.</p>
         <div id="${P}args-identity" class="plotwrap"></div>
       </div>
 
       <div class="card" id="${P}card-jaccard">
         <h3>Jaccard Index</h3>
-        <p class="desc">Larger Jaccard Indx values indicate higher agreement on which unigenes should be treated as ARGs between pipelines.</p>
+        <p class="desc">Larger Jaccard Index indicates higher agreement between pipelines.</p>
         <div id="${P}args-jaccard" class="plotwrap"></div>
       </div>
     </div>
@@ -683,8 +683,8 @@ function renderAnalysisSection(el, habitat, navKey){
 
   renderFAQ(el, [
     "This shows how many ARGs each pipeline calls — hover any bar for the exact count.",
-    "Identity level density for the unigenes reported as ARG against the reference gene. fARGene and most of AMRFinder ARGs are based on HMM models, not identity level reported.",
-    "Larger Jaccard Indx values indicate higher agreement on which unigenes should be treated as ARGs between pipelines."
+    "Identity level against the reference genes. fARGene and most of AMRFinder ARGs use HMMs; no identity level is reported.",
+    "Larger Jaccard Index indicates higher agreement between pipelines."
   ]);
 }
 
@@ -700,7 +700,7 @@ function renderGeneClassesSection(el, habitat, navKey){
   el.innerHTML = `
     <button class="flow-back" id="${P}back-btn">${habitat ? '← Back to Abundance & Richness' : '← Back to ARGs'}</button>
     <h2>Gene Classes</h2>
-    <p class="sub">Same pipelines, broken down by ARG class.</p>
+    <p class="sub">Number of genes and identity levels broken down by ARG classes.</p>
 
     <div class="controls">
       ${habitat ? `<div class="control">
@@ -730,19 +730,19 @@ function renderGeneClassesSection(el, habitat, navKey){
     <div class="grid3">
       <div class="card" id="${P}card-identity">
         <h3>Identity Distribution by Gene Class</h3>
-        <p class="desc">DeepARG vs. RGI-DIAMOND (or their filtered variant, per the thresholds above). Box = spread of percent identity for that pipeline's calls in that class.</p>
+        <p class="desc">DeepARG and RGI.</p>
         <div id="${P}identity-by-class" class="plotwrap"></div>
       </div>
 
       <div class="card" id="${P}card-classbar">
         <h3>Number of Genes per Gene Class</h3>
-        <p class="desc">Total distinct unigenes called in each ARG class. Each gene class is a row; bars within a row compare pipelines. Choosing an identity threshold above adds that filtered pipeline alongside the original.</p>
+        <p class="desc">Number of unigenes detected as ARG by class and pipeline.</p>
         <div id="${P}class-bar" class="plotwrap"></div>
       </div>
 
       <div class="card" id="${P}card-prop">
         <h3>Gene Class Proportion</h3>
-        <p class="desc">Same classes, as a proportion of each pipeline's total calls — shows how the resistome "mix" shifts by pipeline.</p>
+        <p class="desc">Proportion of gene classes on each pipeline's total calls.</p>
         <div id="${P}prop-heatmap" class="plotwrap"></div>
       </div>
     </div>
@@ -914,7 +914,7 @@ function renderCSCSection(el, habitat, navKey){
   el.innerHTML = `
     <button class="flow-back" id="${P}back-btn">← Back to gene classes</button>
     <h2>Class-specific Coverage (CSC) by Gene Class</h2>
-    <p class="sub">For each reference pipeline, CSC asks: of the ARGs a comparison pipeline reports in a given class, what proportion does the reference also report? Each box summarizes CSC across the 10 core pipelines for that class; each dot is one comparison pipeline — hover to see which. Choose 1–6 reference pipelines to compare together.</p>
+    <p class="sub">For each baseline pipeline, CSC asks: of the ARGs a comparison pipeline reports in a given class, what proportion does the baseline pipeline also report?</p>
 
     <div class="controls">
       ${habitat ? `<div class="control">
@@ -941,7 +941,7 @@ function renderCSCSection(el, habitat, navKey){
 
     <div class="card" id="${P}card-box">
       <h3>Class-specific Coverage</h3>
-      <p class="desc">Box = spread of CSC across comparison pipelines for that class; dots are the individual comparison pipelines. Choosing an identity threshold above swaps that pipeline out entirely — it can't be selected alongside its own filtered version.</p>
+      <p class="desc">The boxplots represent the distribution of the CSC for the baseline pipeline against all other comparison pipelines.</p>
       <div id="${P}box" class="plotwrap"></div>
     </div>
 
@@ -1090,7 +1090,7 @@ function renderAbundance(el, habitat, navKey){
   el.innerHTML = `
     <button class="flow-back" id="ab-back-btn">← Back to ARGs by Pipeline</button>
     <h2>Abundance &amp; Richness</h2>
-    <p class="sub">Per-sample distributions of ARG abundance (aligned reads per million) and richness, by pipeline.</p>
+    <p class="sub">Distributions of ARG abundance and richness across all samples in a habitat.</p>
 
     <div class="controls">
       <div class="control">
