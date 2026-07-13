@@ -157,8 +157,8 @@ const NAV_TREE = [
   ]},
   {key:'habitat', label:'Habitat level', children:[
     {key:'habitat-args', label:'ARGs by Pipeline'},
-    {key:'habitat-abundance', label:'Abundance & Richness'},
     {key:'habitat-geneclasses', label:'Gene Classes'},
+    {key:'habitat-abundance', label:'Abundance & Richness'},
     {key:'habitat-csc', label:'Class-specific Coverage'},
     {key:'habitat-pancore', label:'Pan-/Core-resistome'},
   ]},
@@ -217,7 +217,7 @@ const ROUTE_RENDER = {
   'habitat-abundance': (el,h,k)=>renderAbundance(el, h, k),
   'habitat-geneclasses': (el,h,k)=>renderGeneClassesSection(el, h, k),
   'habitat-csc': (el,h,k)=>renderCSCSection(el, h, k),
-  'habitat-pancore': (el,h,k)=>renderPanCorePlaceholder(el, h, k),
+  'habitat-pancore': (el,h,k)=>renderPanCore(el, h, k),
 };
 
 let ACTIVE_KEY = null;
@@ -571,7 +571,7 @@ function renderAnalysisSection(el, habitat, navKey){
 
     <div class="wizard-actions" style="justify-content:space-between;">
       <button class="btn-secondary" id="${P}analysis-back-btn-2">← Back</button>
-      <button class="btn-primary" id="${P}analysis-continue-btn">${habitat ? 'Continue to Abundance & Richness →' : 'Continue to gene classes →'}</button>
+      <button class="btn-primary" id="${P}analysis-continue-btn">Continue to Gene Classes →</button>
     </div>
   `;
 
@@ -686,16 +686,12 @@ function renderAnalysisSection(el, habitat, navKey){
 
   drawBar(); drawJaccard(); drawIdentityDistribution();
 
-  renderFAQ(el, habitat ? [
-    "This shows how many ARGs each pipeline calls — hover any bar for the exact count.",
-    "Identity level against the reference genes. fARGene and most of AMRFinder ARGs use HMMs; no identity level is reported.",
-    "Larger Jaccard Index indicates higher agreement between pipelines."
-  ] : [
-    {title: "Identity levels",
-     text: "DeepARG and RGI report only 15% and 10% of their ARGs with ≥80% identity level to reference genes. The 45-fold reduces to 7-fold."},
-    {title: "Low agreement between pipelines",
+  renderFAQ(el, habitat ? [] : [
+    {title: "Confusing lower bars for higher jumps",
+     text: "<ul><li>Despite RGI using 'perfect' and 'strict' thresholds, it reports only 10% of the ARGs with ≥80% identity level to the reference.</li><li>DeepARG reports only 15% the ARGs with ≥80% identity level to reference.</li></ul>"},
+    {title: "I agree to disagree",
      text: "The highest Jaccard index was observed between ResFinder and ABRicate-ResFinder (73%), and between ABRicate-CARD and ABRicate-MEGARes."},
-    {title: "Similarity differences even using the same reference data",
+    {title: "Same map, same road, different destination",
      text: "ABRicate, compared to RGI, AMRFinderPlus, and ResFinder, shows different results."}
   ]);
 }
@@ -710,7 +706,7 @@ function renderGeneClassesSection(el, habitat, navKey){
   const P = habitat ? 'hab-gc-' : 'gc-';
 
   el.innerHTML = `
-    <button class="flow-back" id="${P}back-btn">${habitat ? '← Back to Abundance & Richness' : '← Back to ARGs'}</button>
+    <button class="flow-back" id="${P}back-btn">← Back to ARGs by Pipeline</button>
     <h2>Gene Classes</h2>
     <p class="sub">Number of genes and identity levels broken down by ARG classes.</p>
 
@@ -761,7 +757,7 @@ function renderGeneClassesSection(el, habitat, navKey){
 
     <div class="wizard-actions" style="justify-content:space-between;">
       <button class="btn-secondary" id="${P}back-btn-2">← Back</button>
-      <button class="btn-primary" id="${P}continue-btn">Continue to Class-specific Coverage →</button>
+      <button class="btn-primary" id="${P}continue-btn">${habitat ? 'Continue to Abundance & Richness →' : 'Continue to Class-specific Coverage →'}</button>
     </div>
   `;
 
@@ -901,17 +897,13 @@ function renderGeneClassesSection(el, habitat, navKey){
 
   drawIdentityByClass(); drawClassBar(); drawPropHeatmap();
 
-  renderFAQ(el, [
-    "Identity level per gene class for DeepARG and RGI",
-    "rpob genes are point mutations, reflect on ID thresholds for point mutations (i will add citation).",
-    "Each gene class is a row here, with one bar per pipeline so you can compare them directly.",
-    habitat
-      ? "<ul><li>DeepARG classifies a large share of efflux pumps as 'multidrug' — a category the tool's own authors flag as a technical challenge requiring manual curation.</li><li>DeepARG classifies a large share of efflux pumps as “unclassified”.</li><li>There are significant difficulties in distinguishing between resistance-conferring pumps and those involved in general physiological transport (I will add citation).</li></ul>"
-      : "<ul><li>DeepARG – 23,784 (58%) of the efflux pumps classified by the tool as 'multidrug', a category highlighted by the authors of the tool as an important technical challenge requiring manual curation.</li><li>DeepARG – 5,290 (13%) were labeled as “unclassified”.</li><li>There are significant difficulties in distinguishing between resistance-conferring pumps and those involved in general physiological transport (I will add citation).</li></ul>",
-    habitat
-      ? "<ul><li>A large share of van genes reported by RGI are vanY — an accessory D,D-carboxypeptidase (not the core ligase) that only increases resistance once the ligase-driven cassette is already active; it's not itself sufficient for resistance.</li><li>A large share of van genes reported by RGI are vanW – an accessory gene of unknown function.</li><li>Most vanT hits are below 80% identity to the reference gene, consistent with many being ordinary alanine racemase (Alr), the essential housekeeping enzyme VanT evolved from, rather than true resistance genes.</li></ul>"
-      : "<ul><li>35% of van genes reported by RGI are vanY — an accessory D,D-carboxypeptidase (not the core ligase) that only increases resistance once the ligase-driven cassette is already active; it's not itself sufficient for resistance.</li><li>32% of van genes reported by RGI are vanW – an accessory gene of unknown function.</li><li>23% of van genes reported by RGI are vanT — 99% are below 80% identity, consistent with most being ordinary alanine racemase (Alr), the essential housekeeping enzyme VanT evolved from, rather than true resistance genes.</li></ul>",
-    "Same classes, but as a share of each pipeline's total calls — shows how the resistome \"mix\" shifts by pipeline."
+  renderFAQ(el, habitat ? [] : [
+    {title: "Go with the outflow",
+     text: "<ul><li>DeepARG – 23,784 (58%) of the efflux pumps were labelled by the tool as 'multidrug', a category highlighted by the authors of the tool as an important technical challenge requiring manual curation.</li><li>DeepARG – 5,290 (13%) of the efflux pumps were labelled as “unclassified” with a median 'probability' of 98%.</li><li>RGI – There are significant difficulties in distinguishing between resistance-conferring pumps and homologs (<a href=\"https://doi.org/10.64898/2025.12.11.693720\" target=\"_blank\">Mukiri, K. M. et al., 2025</a>).</li></ul>"},
+    {title: "Blindly Pointing",
+     text: "Resistance to rifampicin is usually conferred through point mutations in the universal bacterial gene <em>rpoB</em>, which encodes the RNA polymerase-𝛽-subunit. DeepARG reported <em>rpoB</em> genes as ARGs without checking for specific point mutations conferring resistance and with a median identity threshold of 54%."},
+    {title: "The Van-ishing Act",
+     text: "<ul><li>35% of <em>van</em> genes reported by RGI are <em>vanY</em> — an accessory D,D-carboxypeptidase (not the core ligase) that only increases resistance once the ligase-driven cassette is already active; it's not itself sufficient for resistance.</li><li>32% of <em>van</em> genes reported by RGI are <em>vanW</em> – an accessory gene of unknown function.</li><li>23% of <em>van</em> genes reported by RGI are <em>vanT</em> — 99% are below 80% identity. The housekeeping and regulatory gene alanine racemase and <em>vanT</em> share high sequence similarity.</li></ul>"}
   ]);
 }
 
@@ -1089,13 +1081,11 @@ function renderCSCSection(el, habitat, navKey){
 
   draw();
 
-  renderFAQ(el, habitat ? [
-    "<ul><li>A high CSC means that pipeline reports the genes other pipelines also report.</li><li>Despite the large number of efflux pump and van genes, and the low identity level for those classes (and others), RGI and DeepARG did not extrapolate to report the genes that other pipelines reported.</li><li>fARGene, for the gene classes it's trained for, is very good at reporting the genes other pipelines report.</li></ul>"
-  ] : [
-    {title: "Low identity level in alignment does not extrapolate to capture other pipelines",
+  renderFAQ(el, habitat ? [] : [
+    {title: "Confusing lower bars for longer jumps",
      text: "Despite the large number of efflux pump and van genes, and the low identity level for those classes (and others), RGI and DeepARG did not extrapolate to report the genes that other pipelines reported."},
-    {title: "Hidden Markov Models",
-     text: "For the gene classes included in fARGene, this pipeline reports most genes that other pipelines report. The efflux pump model is limited to tetracycline efflux pumps."},
+    {title: "The long voyage starts in your known-walked neighborhood",
+     text: "fARGene was the most comprehensive pipeline for the gene classes included in this tool. fARGene reports most genes that other pipelines report, albeit efflux pump are limited to tetracycline efflux pumps."},
     {title: "The apples that fall under and far from the tree",
      text: "MEGARes reports the genes that ABRicate with the CARD, ResFinder, ARGANNOT, and NCBI datasets, as it is a compilation of them. DeepARG, despite having CARD as a reference under the construction of DeepARG-DB, does not manage to capture the genes that RGI nor ABRicate-CARD do."}
   ]);
@@ -1107,7 +1097,7 @@ function renderCSCSection(el, habitat, navKey){
 function renderAbundance(el, habitat, navKey){
   const basicTools = DATA.tool_meta.basic_tools;
   el.innerHTML = `
-    <button class="flow-back" id="ab-back-btn">← Back to ARGs by Pipeline</button>
+    <button class="flow-back" id="ab-back-btn">← Back to Gene Classes</button>
     <h2>Abundance &amp; Richness</h2>
     <p class="sub">Distributions of ARG abundance and richness across all samples in a habitat.</p>
 
@@ -1155,7 +1145,7 @@ function renderAbundance(el, habitat, navKey){
 
     <div class="wizard-actions" style="justify-content:space-between;">
       <button class="btn-secondary" id="ab-back-btn-2">← Back</button>
-      <button class="btn-primary" id="ab-continue-btn">Continue to Gene Classes →</button>
+      <button class="btn-primary" id="ab-continue-btn">Continue to Class-specific Coverage →</button>
     </div>
   `;
 
@@ -1307,36 +1297,348 @@ function renderAbundance(el, habitat, navKey){
     (vals)=>{selectedGenes=vals.slice(0,15); drawClassAbundance();}, {min:1, max:15});
 
   drawAll();
-
-  renderFAQ(el, [
-    "Zoomed in by default, from 0 up to the highest boxplot whisker across pipelines, so a few extreme outliers don't flatten the whole chart. Use the toolbar to zoom back out if you want the full range.",
-    "Same zoom logic applied here, scoped to richness instead of abundance.",
-    "Same pipelines and habitat, broken down by gene class — one column per class, sharing the pipeline axis on the left."
-  ]);
 }
 
 // ---------------------------------------------------------------------------
-// PAN-/CORE-RESISTOME TAB -- placeholder until wired to core_resistome.py /
-// the pan-resistome equivalent (needs sub_sampling_size, number_of_subsamples,
-// depth, seed as page inputs, per plan).
+// PAN-/CORE-RESISTOME TAB
+//
+// Randomly draws n samples from a habitat, N times; a gene belongs to a
+// subsample's "pan" if present (rarefied count > 0) in >=1 of its n samples,
+// and to its "core" if present in >=p of them. Pan-resistome = gene count
+// (N=1: the actual list; N>1: the mean count across iterations, no single
+// list). Core-resistome = genes that hit the p-cut in >=P of the N
+// iterations (P=1 when N=1) -- always a concrete, downloadable gene list.
+//
+// Presence data is fetched on demand (data/core_pan/<habitat>.json), not
+// eagerly loaded at startup -- the largest habitat/tool combinations run
+// into the tens of MB.
 // ---------------------------------------------------------------------------
-function renderPanCorePlaceholder(el, habitat, navKey){
+const CORE_PAN_MANIFEST_CACHE = {}; // habitat -> {samples, tool_gene_counts}
+const CORE_PAN_TOOL_CACHE = {};     // "habitat|tool" -> {genes, presence}
+const CORE_PAN_TRANSPOSED = {};     // "habitat|tool" -> Int32Array[] (sampleIdx -> gene indices)
+
+function habitatSlug(h){ return h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+
+// Small per-habitat manifest (sample list + gene counts per tool), plain JSON.
+async function fetchCorePanManifest(habitat){
+  if(CORE_PAN_MANIFEST_CACHE[habitat]) return CORE_PAN_MANIFEST_CACHE[habitat];
+  const res = await fetch(`data/core_pan/${habitatSlug(habitat)}.json`);
+  if(!res.ok) throw new Error(`Failed to load manifest for ${habitat}: ${res.status}`);
+  const json = await res.json();
+  CORE_PAN_MANIFEST_CACHE[habitat] = json;
+  return json;
+}
+
+// Per (habitat, tool) presence data, gzip-compressed -- fetched only when
+// that exact combination is actually run.
+async function fetchCorePanToolData(habitat, tool){
+  const key = habitat+'|'+tool;
+  if(CORE_PAN_TOOL_CACHE[key]) return CORE_PAN_TOOL_CACHE[key];
+  const res = await fetch(`data/core_pan/${habitatSlug(habitat)}__${tool}.json.gz`);
+  if(!res.ok) throw new Error(`Failed to load presence data for ${TOOL_LABEL[tool]||tool} in ${habitat}: ${res.status}`);
+  const ds = new DecompressionStream('gzip');
+  const decompressed = res.body.pipeThrough(ds);
+  const text = await new Response(decompressed).text();
+  const json = JSON.parse(text);
+  CORE_PAN_TOOL_CACHE[key] = json;
+  return json;
+}
+
+function getTransposed(habitat, tool, numSamples, toolData){
+  const key = habitat+'|'+tool;
+  if(CORE_PAN_TRANSPOSED[key]) return CORE_PAN_TRANSPOSED[key];
+  const presence = toolData.presence || [];
+  const sampleToGenes = Array.from({length: numSamples}, ()=>[]);
+  presence.forEach((sampleIdxs, geneIdx)=>{
+    sampleIdxs.forEach(si=>sampleToGenes[si].push(geneIdx));
+  });
+  const packed = sampleToGenes.map(arr=>Int32Array.from(arr));
+  CORE_PAN_TRANSPOSED[key] = packed;
+  return packed;
+}
+
+function sampleIndicesWithoutReplacement(n, total){
+  const arr = new Int32Array(total);
+  for(let i=0;i<total;i++) arr[i]=i;
+  const take = Math.min(n, total);
+  for(let i=0;i<take;i++){
+    const j = i + Math.floor(Math.random()*(total-i));
+    const tmp = arr[i]; arr[i]=arr[j]; arr[j]=tmp;
+  }
+  return arr.subarray(0, take);
+}
+
+// Runs N subsample iterations in small chunks (via setTimeout) so the main
+// thread yields and the status text / timer stay live instead of freezing.
+function runCorePanAsync({sampleToGenes, numGenes, numSamples, n, p, N, P}, onProgress, onDone){
+  const nEff = Math.min(n, numSamples);
+  const cnt = new Uint16Array(numGenes);
+  const counts = new Uint16Array(numGenes);
+  const threshold = p * nEff;
+  let panSum = 0;
+  let iter = 0;
+  const t0 = performance.now();
+  const CHUNK = 5;
+
+  function step(){
+    const end = Math.min(iter+CHUNK, N);
+    for(; iter<end; iter++){
+      counts.fill(0);
+      const chosen = sampleIndicesWithoutReplacement(nEff, numSamples);
+      for(let ci=0; ci<chosen.length; ci++){
+        const genes = sampleToGenes[chosen[ci]];
+        for(let k=0;k<genes.length;k++) counts[genes[k]]++;
+      }
+      let panThisIter = 0;
+      for(let g=0; g<numGenes; g++){
+        if(counts[g] > 0) panThisIter++;
+        if(counts[g] >= threshold) cnt[g]++;
+      }
+      panSum += panThisIter;
+    }
+    onProgress(iter, N, performance.now()-t0);
+    if(iter < N){
+      setTimeout(step, 0);
+    } else {
+      const requiredP = N===1 ? 1 : Math.min(P, N);
+      const coreGeneIndices = [];
+      for(let g=0; g<numGenes; g++) if(cnt[g] >= requiredP) coreGeneIndices.push(g);
+      onDone({
+        panMean: panSum/N,
+        coreGeneIndices,
+        elapsedMs: performance.now()-t0
+      });
+    }
+  }
+  step();
+}
+
+function renderPanCore(el, habitat, navKey){
+  const N_OPTIONS = [1, 250, 500];
+  const P_OPTIONS = [30,40,50,60,70,80,90];
+  const n_OPTIONS = [50,100,200,500];
+
   el.innerHTML = `
-    <button class="flow-back" id="pc-ph-back-btn">← Back to Class-specific Coverage</button>
+    <button class="flow-back" id="pc-back-btn">← Back to Class-specific Coverage</button>
     <h2>Pan- and Core-resistome</h2>
-    <p class="sub">Habitat: ${habitat}</p>
-    <div class="card">
-      <h3>Coming soon</h3>
-      <p class="desc">This section will run the core/pan-resistome subsampling analysis directly
-        from this page, with sub_sampling_size, number_of_subsamples, depth, and seed as
-        adjustable inputs.</p>
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:stretch;margin-bottom:20px;">
+      <p class="sub" style="margin-bottom:0;">Randomly draws n samples from the chosen habitat, N times.
+        <strong>Pan-resistome</strong>: the average across the N subsample processes of the unique number
+        of ARGs in the n samples. To be counted in the <strong>core-resistome</strong>, a gene has to be in
+        at least p of the n samples, consistently enough (in at least P of the N subsample processes).</p>
+      <div class="card" style="margin-bottom:0;">
+        <h3 style="font-size:13px;">Samples per habitat</h3>
+        <div id="pc-habitat-samples-chart" class="plotwrap"></div>
+      </div>
     </div>
+
+    <div class="controls">
+      <div class="control">
+        <label>Habitat</label>
+        <div id="pc-habitat-select"></div>
+      </div>
+      <div class="control" style="flex:1;min-width:260px;">
+        <label>Pipelines</label>
+        <div id="pc-pipeline-chips"></div>
+      </div>
+      <div class="control">
+        <label>DeepARG identity threshold</label>
+        <div id="pc-deeparg-identity"></div>
+      </div>
+      <div class="control">
+        <label>RGI identity threshold</label>
+        <div id="pc-rgi-identity"></div>
+      </div>
+      <div class="control">
+        <label style="text-transform:none;">n (samples per subsample)</label>
+        <div id="pc-n-select"></div>
+        <label style="text-transform:none;margin-top:8px;">p (core proportion within a subsample)</label>
+        <div id="pc-p-select"></div>
+      </div>
+      <div class="control">
+        <label>N (number of subsamples)</label>
+        <div id="pc-bign-select"></div>
+        <div id="pc-bigp-control" style="display:none;">
+          <label style="margin-top:8px;">P (min subsamples a gene must qualify in)</label>
+          <input type="number" id="pc-bigp-input" min="1" value="1" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);">
+        </div>
+      </div>
+    </div>
+
+    <p id="pc-warning" class="footnote" style="display:none;color:var(--coral);"></p>
+
+    <div class="wizard-actions" style="justify-content:flex-start;gap:14px;">
+      <button class="btn-primary" id="pc-run-btn">Run →</button>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Pan-resistome size</h3>
+        <p class="desc" id="pc-pan-desc">Mean number of distinct genes present, averaged across the N subsamples.</p>
+        <div id="pc-pan-chart" class="plotwrap"></div>
+      </div>
+      <div class="card">
+        <h3>Core-resistome size</h3>
+        <p class="desc" id="pc-core-desc">Number of genes consistently detected across the subsampled habitat samples.</p>
+        <div id="pc-core-chart" class="plotwrap"></div>
+      </div>
+    </div>
+
     <div class="wizard-actions">
-      <button class="btn-secondary" id="pc-ph-back-btn-2">← Back</button>
+      <button class="btn-secondary" id="pc-back-btn-2">← Back</button>
     </div>
   `;
-  document.getElementById('pc-ph-back-btn').addEventListener('click', ()=>navigateTo(prevKey(navKey)));
-  document.getElementById('pc-ph-back-btn-2').addEventListener('click', ()=>navigateTo(prevKey(navKey)));
+  document.getElementById('pc-back-btn').addEventListener('click', ()=>navigateTo(prevKey(navKey)));
+  document.getElementById('pc-back-btn-2').addEventListener('click', ()=>navigateTo(prevKey(navKey)));
+
+  const basicTools = DATA.tool_meta.basic_tools;
+  let selectedPipelines = [...basicTools];
+  let deepargLevel = 'DeepARG';
+  let rgiLevel = 'RGI-DIAMOND';
+  let n = 100, p = 50, bigN = 1;
+
+  function toolSet(){
+    // swap: the chosen identity level replaces the base pipeline
+    return selectedPipelines.map(t=>{
+      if(t==='DeepARG') return deepargLevel;
+      if(t==='RGI-DIAMOND') return rgiLevel;
+      return t;
+    });
+  }
+
+  function drawHabitatSamplesChart(){
+    const rows = getHabitats().map(h=>{
+      const r = DATA.habitat_n_samples.find(d=>d.habitat===h);
+      return {habitat: h, n: r ? r.n_samples : 0};
+    }).sort((a,b)=>a.n-b.n);
+    Plotly.react('pc-habitat-samples-chart', [{
+      type:'bar', orientation:'h',
+      y: rows.map(r=>r.habitat), x: rows.map(r=>r.n),
+      marker:{color: rows.map(r=>r.habitat===habitat ? '#e76f51' : '#8a9a95')},
+      hovertemplate:'%{y}: %{x:,} samples<extra></extra>'
+    }], {...PLOTLY_LAYOUT_BASE, height:240,
+      margin:{t:6,l:20,r:8,b:28},
+      font:{...PLOTLY_LAYOUT_BASE.font, size:10},
+      xaxis:{title:'', gridcolor:'#dde2de', rangemode:'nonnegative'},
+      yaxis:{automargin:true, tickfont:{size:9.5}}}, {...PLOTLY_CONFIG, displayModeBar:false});
+  }
+
+  makeSelect(document.getElementById('pc-habitat-select'),
+    getHabitats().map(h=>({value:h, label:h})), habitat, false,
+    (v)=>{habitat=v; setChosenHabitat(v); drawHabitatSamplesChart();});
+  drawHabitatSamplesChart();
+
+  chipToggle(document.getElementById('pc-pipeline-chips'),
+    basicTools.map(t=>({value:t,label:TOOL_LABEL[t]||t})), selectedPipelines,
+    (vals)=>{selectedPipelines=vals;});
+
+  makeSelect(document.getElementById('pc-deeparg-identity'),
+    [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
+     {value:'DeepARG80',label:'≥80%'},{value:'DeepARG90',label:'≥90%'}],
+    deepargLevel, false, (v)=>{deepargLevel=v;});
+
+  makeSelect(document.getElementById('pc-rgi-identity'),
+    [{value:'RGI-DIAMOND',label:'No threshold'},{value:'RGI-DIAMOND70',label:'≥70%'},
+     {value:'RGI-DIAMOND80',label:'≥80%'},{value:'RGI-DIAMOND90',label:'≥90%'}],
+    rgiLevel, false, (v)=>{rgiLevel=v;});
+
+  makeSelect(document.getElementById('pc-n-select'),
+    n_OPTIONS.map(v=>({value:String(v), label:String(v)})), String(n), false,
+    (v)=>{n=+v;});
+
+  makeSelect(document.getElementById('pc-p-select'),
+    P_OPTIONS.map(v=>({value:String(v), label:v+'%'})), String(p), false,
+    (v)=>{p=+v;});
+
+  const bigPControl = document.getElementById('pc-bigp-control');
+  const bigPInput = document.getElementById('pc-bigp-input');
+  const warningEl = document.getElementById('pc-warning');
+  makeSelect(document.getElementById('pc-bign-select'),
+    N_OPTIONS.map(v=>({value:String(v), label:String(v)})), String(bigN), false,
+    (v)=>{
+      bigN=+v;
+      bigPControl.style.display = bigN>1 ? 'flex' : 'none';
+      if(bigN>1){
+        bigPInput.max = bigN;
+        bigPInput.value = Math.min(+bigPInput.value || Math.ceil(bigN/2), bigN);
+      }
+      if(bigN>1){
+        warningEl.style.display = 'block';
+        warningEl.textContent = `N=${bigN} runs ${bigN} subsample iterations per pipeline in your browser -- `+
+          (bigN>=500 ? 'this can take up to several seconds to tens of seconds per pipeline for large habitats (e.g. human gut).'
+                     : 'this can take a few seconds per pipeline for large habitats.');
+      } else {
+        warningEl.style.display = 'none';
+      }
+    });
+
+  function drawBars(elId, rows){
+    Plotly.react(elId, [{
+      type:'bar', orientation:'h',
+      y: rows.map(r=>TOOL_LABEL[r.tool]||r.tool), x: rows.map(r=>r.count),
+      marker:{color: rows.map(r=>DB_COLOR[TOOL_DB[r.tool]]||'#1d3557'), line:{color:'#ffffff', width:1}},
+      hovertemplate:'%{y}: %{x:,}<extra></extra>'
+    }], {...PLOTLY_LAYOUT_BASE, height: Math.max(160, rows.length*36),
+      margin:{t:8,l:20,r:8,b:40},
+      xaxis:{title:'Number of genes', gridcolor:'#dde2de', rangemode:'nonnegative'},
+      yaxis:{automargin:true, autorange:'reversed'}}, PLOTLY_CONFIG);
+  }
+
+  document.getElementById('pc-run-btn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('pc-run-btn');
+    btn.disabled = true;
+
+    const tools = toolSet();
+    if(tools.length===0){
+      btn.disabled = false;
+      return;
+    }
+
+    try{
+      const manifest = await fetchCorePanManifest(habitat);
+      const numSamples = manifest.samples.length;
+      const pFrac = p/100;
+      const results = [];
+
+      for(let ti=0; ti<tools.length; ti++){
+        const tool = tools[ti];
+        const geneCount = manifest.tool_gene_counts[tool] || 0;
+        if(geneCount === 0){
+          results.push({tool, panCount: 0, coreCount: 0});
+          continue;
+        }
+
+        const toolData = await fetchCorePanToolData(habitat, tool);
+        const geneList = toolData.genes;
+        const sampleToGenes = getTransposed(habitat, tool, numSamples, toolData);
+
+        const result = await new Promise((resolve)=>{
+          runCorePanAsync(
+            {sampleToGenes, numGenes: geneList.length, numSamples, n, p: pFrac, N: bigN, P: bigPInput.value ? +bigPInput.value : 1},
+            ()=>{},
+            resolve
+          );
+        });
+
+        results.push({tool, panCount: Math.round(result.panMean), coreCount: result.coreGeneIndices.length});
+      }
+
+      const nEff = Math.min(n, numSamples);
+
+      drawBars('pc-pan-chart', results.map(r=>({tool:r.tool, count:r.panCount})));
+      drawBars('pc-core-chart', results.map(r=>({tool:r.tool, count:r.coreCount})));
+
+      document.getElementById('pc-pan-desc').textContent =
+        `Mean number of distinct genes present, averaged across ${bigN} subsample${bigN>1?'s':''} of ${nEff} samples each.`;
+      document.getElementById('pc-core-desc').textContent = bigN===1
+        ? `Genes present in ≥${p}% of the ${nEff} subsampled samples.`
+        : `Genes present in ≥${p}% of a subsample's ${nEff} samples, in at least ${bigPInput.value}/${bigN} subsamples.`;
+
+      btn.disabled = false;
+    } catch(err){
+      btn.disabled = false;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

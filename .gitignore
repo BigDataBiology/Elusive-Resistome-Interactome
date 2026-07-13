@@ -1,2 +1,5 @@
+data_zenodo_github/
+unigenes.tsv
+webapp/data/
 .DS_Store
-.gitattributes
+__pycache__/
