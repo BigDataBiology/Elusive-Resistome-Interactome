@@ -180,17 +180,22 @@ function setChosenHabitat(v){
 
 // Appends a "Have you considered...?" FAQ accordion to the bottom of a
 // section: numbered questions that expand to reveal the answer text.
+// Each entry is either a plain string (numbered "1","2",...) or
+// {title, text} for a custom question label.
 function renderFAQ(container, answers){
   if(!answers.length) return;
   const block = document.createElement('div');
   block.className = 'faq-block';
-  block.innerHTML = `<h3 class="faq-title">Have you considered...?</h3>`;
-  answers.forEach((text,i)=>{
+  block.innerHTML = `<h3 class="faq-title">Key Takeaways</h3>`;
+  answers.forEach((entry,i)=>{
+    const isObj = entry !== null && typeof entry === 'object';
+    const label = isObj ? entry.title : String(i+1);
+    const text = isObj ? entry.text : entry;
     const item = document.createElement('div');
     item.className = 'faq-item';
     item.innerHTML = `
       <button class="faq-question" type="button">
-        <span class="faq-arrow">▸</span><span>${i+1}</span>
+        <span class="faq-arrow">▸</span><span>${label}</span>
       </button>
       <div class="faq-answer">${text}</div>`;
     const btn = item.querySelector('.faq-question');
@@ -681,10 +686,17 @@ function renderAnalysisSection(el, habitat, navKey){
 
   drawBar(); drawJaccard(); drawIdentityDistribution();
 
-  renderFAQ(el, [
+  renderFAQ(el, habitat ? [
     "This shows how many ARGs each pipeline calls — hover any bar for the exact count.",
     "Identity level against the reference genes. fARGene and most of AMRFinder ARGs use HMMs; no identity level is reported.",
     "Larger Jaccard Index indicates higher agreement between pipelines."
+  ] : [
+    {title: "Identity levels",
+     text: "DeepARG and RGI report only 15% and 10% of their ARGs with ≥80% identity level to reference genes. The 45-fold reduces to 7-fold."},
+    {title: "Low agreement between pipelines",
+     text: "The highest Jaccard index was observed between ResFinder and ABRicate-ResFinder (73%), and between ABRicate-CARD and ABRicate-MEGARes."},
+    {title: "Similarity differences even using the same reference data",
+     text: "ABRicate, compared to RGI, AMRFinderPlus, and ResFinder, shows different results."}
   ]);
 }
 
@@ -762,6 +774,15 @@ function renderGeneClassesSection(el, habitat, navKey){
   let selectedClasses = [...defaultClasses];
   let selectedPipelines = [...basicTools];
 
+  function barToolSet(){
+    // swap: the chosen identity level replaces the base pipeline
+    return selectedPipelines.map(t=>{
+      if(t==='DeepARG') return deepargLevel;
+      if(t==='RGI-DIAMOND') return rgiLevel;
+      return t;
+    });
+  }
+
   function classBarToolSet(){
     // add-alongside: keep the original pipeline, add the filtered variant next to it
     const set = [];
@@ -773,15 +794,6 @@ function renderGeneClassesSection(el, habitat, navKey){
     return set;
   }
 
-  function identityToolSet(){
-    // add-alongside, scoped to just DeepARG/RGI regardless of the pipeline chips
-    const set = ['DeepARG'];
-    if(deepargLevel!=='DeepARG') set.push(deepargLevel);
-    set.push('RGI-DIAMOND');
-    if(rgiLevel!=='RGI-DIAMOND') set.push(rgiLevel);
-    return set;
-  }
-
   function geneClassProp(){ return habitat ? habGeneClassProportion(habitat) : DATA.gene_class_proportion; }
   function identityByClass(){ return habitat ? habIdentityByClass(habitat) : DATA.identity_by_class; }
 
@@ -789,7 +801,7 @@ function renderGeneClassesSection(el, habitat, navKey){
     const classes = selectedClasses;
     const classLabels = classes.map(wrapClassLabel);
     const ibc = identityByClass();
-    const traces = identityToolSet().map(t=>{
+    const traces = [deepargLevel, rgiLevel].map(t=>{
       const rows = classes.map(cl=>ibc.find(d=>d.tool===t && d.new_level===cl));
       const color = DB_COLOR[TOOL_DB[t]] || '#1B9E77';
       return {
@@ -808,7 +820,7 @@ function renderGeneClassesSection(el, habitat, navKey){
   }
 
   function drawClassBar(){
-    const tools = classBarToolSet();
+    const tools = barToolSet();
     const classes = selectedClasses;
     const classLabels = classes.map(wrapClassLabel);
     const gcp = geneClassProp();
@@ -1077,8 +1089,15 @@ function renderCSCSection(el, habitat, navKey){
 
   draw();
 
-  renderFAQ(el, [
+  renderFAQ(el, habitat ? [
     "<ul><li>A high CSC means that pipeline reports the genes other pipelines also report.</li><li>Despite the large number of efflux pump and van genes, and the low identity level for those classes (and others), RGI and DeepARG did not extrapolate to report the genes that other pipelines reported.</li><li>fARGene, for the gene classes it's trained for, is very good at reporting the genes other pipelines report.</li></ul>"
+  ] : [
+    {title: "Low identity level in alignment does not extrapolate to capture other pipelines",
+     text: "Despite the large number of efflux pump and van genes, and the low identity level for those classes (and others), RGI and DeepARG did not extrapolate to report the genes that other pipelines reported."},
+    {title: "Hidden Markov Models",
+     text: "For the gene classes included in fARGene, this pipeline reports most genes that other pipelines report. The efflux pump model is limited to tetracycline efflux pumps."},
+    {title: "The apples that fall under and far from the tree",
+     text: "MEGARes reports the genes that ABRicate with the CARD, ResFinder, ARGANNOT, and NCBI datasets, as it is a compilation of them. DeepARG, despite having CARD as a reference under the construction of DeepARG-DB, does not manage to capture the genes that RGI nor ABRicate-CARD do."}
   ]);
 }
 
