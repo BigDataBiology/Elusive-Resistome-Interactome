@@ -8,7 +8,127 @@ const PLOTLY_LAYOUT_BASE = {
   margin: {t:30,l:60,r:20,b:70},
   colorway: ['#1d3557','#2a9d8f','#e76f51','#7c5cbf','#6a9c3f','#c9962e','#6b7c77']
 };
-const PLOTLY_CONFIG = {displaylogo:false, responsive:true, modeBarButtonsToRemove:['lasso2d','select2d']};
+function downloadButton(format){
+  const label = format.toUpperCase();
+  return {
+    name: `Download ${label}`,
+    title: `Download plot as ${label}`,
+    icon: {
+      width: 1000, height: 1000,
+      // camera glyph + format label so the two buttons are distinguishable
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">' +
+        '<path fill="currentColor" d="M500 450a170 170 0 100 340 170 170 0 000-340zm0 280a110 110 0 110-220 110 110 0 010 220z"/>' +
+        '<path fill="currentColor" d="M820 320H670l-40-70a40 40 0 00-34-20H404a40 40 0 00-34 20l-40 70H180a80 80 0 00-80 80v320a80 80 0 0080 80h640a80 80 0 0080-80V400a80 80 0 00-80-80zm20 400a20 20 0 01-20 20H180a20 20 0 01-20-20V400a20 20 0 0120-20h186l58-90h152l58 90h188a20 20 0 0120 20z"/>' +
+        `<text x="500" y="900" font-family="Inter, sans-serif" font-size="260" font-weight="700" text-anchor="middle" fill="currentColor">${label}</text>` +
+        '</svg>'
+    },
+    click: gd => Plotly.downloadImage(gd, {format, filename: gd.id || 'plot'})
+  };
+}
+const PLOTLY_CONFIG = {displaylogo:false, responsive:true,
+  modeBarButtonsToRemove:['lasso2d','select2d','toImage'],
+  modeBarButtonsToAdd:[downloadButton('png'), downloadButton('svg')]};
+
+// Read a Plotly title, which may be a plain string or a {text, ...} object.
+function plotlyTitle(t){
+  if(!t) return '';
+  return (typeof t === 'string' ? t : String(t.text || '')).trim();
+}
+
+// Serialise a Plotly graph div's rendered data to TSV, one row per data point in
+// long format. Column headers come from the plot itself: the x/y axis titles, the
+// colorbar title for a heatmap's value, and the legend title (or the trace names)
+// for the series column. Where a title is missing we fall back to a descriptive
+// default (row/column/value for a heatmap, label for a categorical axis) rather
+// than a bare x/y. Names are kept distinct so no two columns collapse into one.
+function plotToTSV(gd){
+  const traces = (gd && gd.data) || [];
+  const multi = traces.length > 1;
+  const named = multi || (traces[0] && traces[0].name);
+  const full = (gd && (gd._fullLayout || gd.layout)) || {};
+  const xAx = full.xaxis || {}, yAx = full.yaxis || {};
+  const isHeat = traces.some(t => t.type === 'heatmap');
+
+  const used = new Set();
+  const uniq = n => { const base = n || 'col'; let k = base, i = 2; while(used.has(k)) k = `${base}_${i++}`; used.add(k); return k; };
+  const sCol = named ? uniq(plotlyTitle(full.legend && full.legend.title) || 'series') : null;
+  let xCol, yCol, zCol;
+  if(isHeat){
+    xCol = uniq(plotlyTitle(xAx.title) || 'column');
+    yCol = uniq(plotlyTitle(yAx.title) || 'row');
+    const heat = traces.find(t => t.type === 'heatmap');
+    zCol = uniq(plotlyTitle(heat.colorbar && heat.colorbar.title) || 'value');
+  } else {
+    xCol = uniq(plotlyTitle(xAx.title) || (xAx.type === 'category' ? 'label' : 'x'));
+    yCol = uniq(plotlyTitle(yAx.title) || (yAx.type === 'category' ? 'label' : 'y'));
+  }
+
+  const cols = [];
+  const rows = [];
+  const addCol = k => { if(!cols.includes(k)) cols.push(k); };
+  traces.forEach((tr, ti) => {
+    const name = tr.name || (multi ? `series ${ti+1}` : '');
+    if(tr.type === 'heatmap'){
+      const z = tr.z||[], xs = tr.x||[], ys = tr.y||[];
+      for(let i=0;i<z.length;i++)
+        for(let j=0;j<(z[i]||[]).length;j++){
+          const r = {};
+          if(sCol && name) r[sCol] = name;
+          r[xCol] = xs[j]; r[yCol] = ys[i]; r[zCol] = z[i][j];
+          Object.keys(r).forEach(addCol); rows.push(r);
+        }
+    } else {
+      const x = tr.x||[], y = tr.y||[];
+      const n = Math.max(x.length, y.length);
+      for(let i=0;i<n;i++){
+        const r = {};
+        if(sCol && name) r[sCol] = name;
+        if(x.length) r[xCol] = x[i];
+        if(y.length) r[yCol] = y[i];
+        Object.keys(r).forEach(addCol); rows.push(r);
+      }
+    }
+  });
+  const esc = v => v==null ? '' : String(v).replace(/[\t\r\n]/g,' ');
+  return [cols.map(esc).join('\t')]
+    .concat(rows.map(r => cols.map(c => c in r ? esc(r[c]) : '').join('\t')))
+    .join('\n');
+}
+
+function downloadTSV(gd){
+  const blob = new Blob([plotToTSV(gd)], {type:'text/tab-separated-values'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = ((gd && gd.id) || 'plot') + '.tsv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+// Add a "Download data (TSV)" button as a sibling right after the plot div.
+// Idempotent: the plot div lives inside a .card, so re-renders find the existing
+// button and skip. gd is the graph div Plotly.react/newPlot resolves with.
+function ensureTsvButton(gd){
+  if(!gd || !gd.insertAdjacentElement) return;
+  const next = gd.nextElementSibling;
+  if(next && next.classList && next.classList.contains('tsv-dl')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tsv-dl';
+  btn.textContent = '⤓ Download data (TSV)';
+  btn.addEventListener('click', ()=> downloadTSV(gd));
+  gd.insertAdjacentElement('afterend', btn);
+}
+
+// Drop-in wrappers for Plotly.react / Plotly.newPlot that also attach a TSV
+// download button once the plot has rendered.
+function plot(){
+  return Plotly.react.apply(Plotly, arguments).then(gd=>{ ensureTsvButton(gd); return gd; });
+}
+function plotNew(){
+  return Plotly.newPlot.apply(Plotly, arguments).then(gd=>{ ensureTsvButton(gd); return gd; });
+}
 
 function cleanLevel(s){
   if(!s) return s;
@@ -438,7 +558,7 @@ function alignCitationsSidebar(){
 }
 
 function plotCitations(rows, sourceLabel){
-  Plotly.react('intro-citations-chart', [
+  plot('intro-citations-chart', [
     {
       type:'bar', orientation:'h', name:'Before 2025',
       y: rows.map(r=>r.tool), x: rows.map(r=>r.before2025),
@@ -625,7 +745,7 @@ function renderAnalysisSection(el, habitat, navKey){
     const tools = jaccardToolSet();
     const argCounts = habitat ? habArgCounts(habitat) : DATA.arg_counts;
     const rows = tools.map(t=>argCounts.find(d=>d.tool===t)).filter(Boolean);
-    Plotly.react(`${P}args-bar`, [{
+    plot(`${P}args-bar`, [{
       type:'bar', orientation:'h',
       y: rows.map(d=>TOOL_LABEL[d.tool]||d.tool),
       x: rows.map(d=>d.n),
@@ -648,7 +768,7 @@ function renderAnalysisSection(el, habitat, navKey){
       const v = jmap.get(tr+'|'+tc);
       return v===undefined ? null : v;
     }));
-    Plotly.react(`${P}args-jaccard`, [{
+    plot(`${P}args-jaccard`, [{
       type:'heatmap', z, x:labels, y:labels,
       colorscale:[[0,'#eef0ee'],[1,'#2a9d8f']], zmin:0, zmax:1,
       hovertemplate:'%{y} vs %{x}: %{z:.0%}<extra></extra>',
@@ -676,7 +796,7 @@ function renderAnalysisSection(el, habitat, navKey){
           hovertemplate: (TOOL_LABEL[t]||t)+' — %{x:.0f}% identity: %{y:.1%}<extra></extra>'
         };
       });
-    Plotly.react(`${P}args-identity`, traces, {...PLOTLY_LAYOUT_BASE, height:h,
+    plot(`${P}args-identity`, traces, {...PLOTLY_LAYOUT_BASE, height:h,
       xaxis:{title:'Percent identity to reference', gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{title:'Density', gridcolor:'#dde2de', rangemode:'nonnegative'},
       legend:{orientation:'h', y:-0.3}}, PLOTLY_CONFIG);
@@ -826,7 +946,7 @@ function renderGeneClassesSection(el, habitat, navKey){
         marker:{color}, line:{color}, hoverinfo:'skip'
       };
     });
-    Plotly.react(`${P}identity-by-class`, traces, {...PLOTLY_LAYOUT_BASE, boxmode:'group',
+    plot(`${P}identity-by-class`, traces, {...PLOTLY_LAYOUT_BASE, boxmode:'group',
       height: Math.max(460, classes.length*42), margin:{t:10,l:20,r:8,b:95},
       xaxis:{title:'Percent identity', range:[0,102], gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{automargin:true, autorange:'reversed', categoryorder:'array', categoryarray:classLabels, tickangle:-45, tickfont:{size:9.5}},
@@ -860,7 +980,7 @@ function renderGeneClassesSection(el, habitat, navKey){
       line:{color:'#dde2de', width:1}
     }));
 
-    Plotly.react(`${P}class-bar`, traces, {...PLOTLY_LAYOUT_BASE, barmode:'group',
+    plot(`${P}class-bar`, traces, {...PLOTLY_LAYOUT_BASE, barmode:'group',
       height: Math.max(500, classes.length*70),
       margin:{t:50,l:20,r:20,b:60},
       shapes: dividers,
@@ -878,7 +998,7 @@ function renderGeneClassesSection(el, habitat, navKey){
       const row = gcp.find(d=>d.tool===t && d.new_level===cl);
       return row ? row.p : 0;
     }));
-    Plotly.react(`${P}prop-heatmap`, [{
+    plot(`${P}prop-heatmap`, [{
       type:'heatmap', z, x: tools.map(t=>TOOL_LABEL[t]||t), y: classes.map(wrapClassLabel),
       colorscale:[[0,'#eef0ee'],[1,'#2a9d8f']],
       hovertemplate:'%{y} — %{x}: %{z:.1%}<extra></extra>',
@@ -1088,7 +1208,7 @@ function renderCSCSection(el, habitat, navKey){
     });
 
     layout.shapes = dividers;
-    Plotly.react(`${P}box`, traces, layout, PLOTLY_CONFIG);
+    plot(`${P}box`, traces, layout, PLOTLY_CONFIG);
   }
 
   makeSelect(document.getElementById(`${P}deeparg-identity`),
@@ -1239,7 +1359,7 @@ function renderAbundance(el, habitat, navKey){
   function drawAbundance(){
     const summary = DATA.abundance_summary.filter(d=>d.habitat===habitat);
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
-    Plotly.react('ab-abundance-box', boxTrace(summary, jitter, 'abundance'),
+    plot('ab-abundance-box', boxTrace(summary, jitter, 'abundance'),
       {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
        yaxis:{title:'Relative abundance (reads/million)', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
@@ -1248,7 +1368,7 @@ function renderAbundance(el, habitat, navKey){
   function drawRichness(){
     const summary = DATA.richness_summary.filter(d=>d.habitat===habitat);
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
-    Plotly.react('ab-richness-box', boxTrace(summary, jitter, 'richness'),
+    plot('ab-richness-box', boxTrace(summary, jitter, 'richness'),
       {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
        yaxis:{title:'Richness', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
@@ -1309,7 +1429,7 @@ function renderAbundance(el, habitat, navKey){
     });
 
     layout.shapes = dividers;
-    Plotly.react('ab-class-facet', traces, layout, PLOTLY_CONFIG);
+    plot('ab-class-facet', traces, layout, PLOTLY_CONFIG);
   }
   function drawAll(){ drawAbundance(); drawRichness(); drawClassAbundance(); }
 
@@ -1546,7 +1666,7 @@ function renderPanCore(el, habitat, navKey){
       const r = DATA.habitat_n_samples.find(d=>d.habitat===h);
       return {habitat: h, n: r ? r.n_samples : 0};
     }).sort((a,b)=>a.n-b.n);
-    Plotly.react('pc-habitat-samples-chart', [{
+    plot('pc-habitat-samples-chart', [{
       type:'bar', orientation:'h',
       y: rows.map(r=>r.habitat), x: rows.map(r=>r.n),
       marker:{color: rows.map(r=>r.habitat===habitat ? '#e76f51' : '#8a9a95')},
@@ -1608,7 +1728,7 @@ function renderPanCore(el, habitat, navKey){
     });
 
   function drawBars(elId, rows){
-    Plotly.react(elId, [{
+    plot(elId, [{
       type:'bar', orientation:'h',
       y: rows.map(r=>TOOL_LABEL[r.tool]||r.tool), x: rows.map(r=>r.count),
       marker:{color: rows.map(r=>DB_COLOR[TOOL_DB[r.tool]]||'#1d3557'), line:{color:'#ffffff', width:1}},
@@ -1725,7 +1845,7 @@ function renderOverlap(el){
       return rows.reduce((a,d)=>a+d.csc,0)/rows.length;
     }));
     const plotEl = document.getElementById('ov-heatmap');
-    Plotly.react(plotEl, [{
+    plot(plotEl, [{
       type:'heatmap', z, x: refs.map(t=>TOOL_LABEL[t]||t), y: classes.map(cleanLevel),
       colorscale:[[0,'#eef0ee'],[1,'#1d3557']], zmin:0, zmax:1,
       hovertemplate:'%{y} — %{x}: %{z:.0%}<extra></extra>',
@@ -1744,7 +1864,7 @@ function renderOverlap(el){
   function drawDetail(ref, cls){
     document.getElementById('ov-detail-title').textContent = `${TOOL_LABEL[ref]||ref} — ${cleanLevel(cls)}`;
     const rows = DATA.csc.filter(d=>d.tool_ref===ref && d.new_level===cls).sort((a,b)=>b.csc-a.csc);
-    Plotly.newPlot('ov-detail', [{
+    plotNew('ov-detail', [{
       type:'bar', orientation:'h',
       y: rows.map(d=>TOOL_LABEL[d.tool_comp]||d.tool_comp),
       x: rows.map(d=>d.csc),
