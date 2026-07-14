@@ -2,7 +2,7 @@
 authors = ["indajuan <indajuan@users.noreply.github.com>"]
 channels = ["conda-forge"]
 name = "Elusive-Resistome-Interactome"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
@@ -11,6 +11,13 @@ unigenes    = "./build_unigenes.py"
 app-data    = "./build_app_data.py"
 core-pan    = "./build_core_pan_data.py"
 serve       = "./serve_webapp.sh"
+
+pipeline = { cmd = "./serve_webapp.sh", depends_on = [
+  "download",
+  "unigenes",
+  "app-data",
+  "core-pan",
+] }
 
 [dependencies]
 python = ">=3.14.6,<3.15"

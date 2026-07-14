@@ -41,14 +41,26 @@ package versions everyone should use.
 
 ```bash
 curl -fsSL https://pixi.sh/install.sh | sh   # one-time install, then restart your terminal
-cd Elusive_app
+git clone https://github.com/indajuan/Elusive-Resistome-Interactome.git
+cd Elusive-Resistome-Interactome
 pixi install                                  # reproduces the exact environment from pixi.lock
 ```
 
-Then prefix every command in steps 1–5 below with `pixi run`, e.g. `pixi
-run ./download_data.sh data_zenodo_github` — or run `pixi shell` once to
-drop into a shell with the environment already active, then use the plain
-commands exactly as written.
+Then prefix every command in steps 1–5 below with `pixi run`, this will only run each stage,
+This runs each stage independently, so you can use it if you want to re-run one stage without 
+rebuilding everything from scratch:
+
++ pixi run download
++ pixi run unigenes
++ pixi run app-data
++ pixi run core-pan
++ pixi run serve
+
+If you want to run everything in order and at once, you use:
+
+```
+pixi run pipeline
+```
 
 ### Option B — install it yourself, no pixi
 
