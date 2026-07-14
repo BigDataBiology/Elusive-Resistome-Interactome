@@ -688,7 +688,7 @@ function renderAnalysisSection(el, habitat, navKey){
 
   renderFAQ(el, habitat ? [] : [
     {title: "Confusing lower bars for higher jumps",
-     text: "<ul><li>Despite RGI using 'perfect' and 'strict' thresholds, it reports only 10% of the ARGs with ≥80% identity level to the reference.</li><li>DeepARG reports only 15% the ARGs with ≥80% identity level to reference.</li></ul>"},
+     text: "<ul><li>Despite RGI using 'perfect' and 'strict' thresholds, it reports only 10% of the ARGs with ≥80% identity level to the reference.</li><li>DeepARG reports only 15% the ARGs with ≥80% identity level to reference.</li><li>Does lowering sequence identity thresholds enable discovery of ARGs?</li><li>Would this strategy work for any gene class?</li></ul>"},
     {title: "Agree to disagree",
      text: "The highest Jaccard index was observed between ResFinder and ABRicate-ResFinder (73%), and between ABRicate-CARD and ABRicate-MEGARes."},
     {title: "Same map, same road, different destination",
