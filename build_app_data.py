@@ -197,7 +197,7 @@ def build_unigenes_globals(unigenes: pd.DataFrame, out_dir: Path):
 
     print("Computing identity-level distributions ...")
     identity_dist = []
-    for t in IDENTITY_TOOLS:
+    for t in IDENTITY_TOOLS + IDENTITY_VARIANTS:
         vals = unigenes[unigenes["tool"] == t]["id"].dropna().values
         if len(vals) == 0:
             continue
@@ -298,7 +298,7 @@ def build_habitat_unigenes(unigenes: pd.DataFrame, hab_csv_path: Path, out_dir: 
         hab_jaccard[h] = columnar(pd.DataFrame(jaccard_table(tool_sets, CSC_TOOLS)))
 
         idist = []
-        for t in IDENTITY_TOOLS:
+        for t in IDENTITY_TOOLS + IDENTITY_VARIANTS:
             vals = uh[uh["tool"] == t]["id"].dropna().values
             if len(vals) == 0:
                 continue
