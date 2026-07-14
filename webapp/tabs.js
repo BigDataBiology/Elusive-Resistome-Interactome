@@ -368,7 +368,7 @@ function makeControlsCollapsible(root){
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'controls-toggle';
-    toggle.innerHTML = `<span class="controls-toggle-arrow">▸</span><span>Filters</span>`;
+    toggle.innerHTML = `<span class="controls-toggle-arrow">▸</span><span>Set Filters</span>`;
     ctrl.classList.add('controls-collapsed');
     ctrl.parentNode.insertBefore(toggle, ctrl);
     toggle.addEventListener('click', ()=>{
