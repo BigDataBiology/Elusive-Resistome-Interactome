@@ -1290,6 +1290,14 @@ function renderAbundance(el, habitat, navKey){
     <div class="card" id="ab-card-classfacet">
       <h3>Relative abundance per gene class</h3>
       <div class="controls" style="margin-bottom:10px;">
+        <div class="control">
+          <label>DeepARG identity threshold</label>
+          <div id="ab-class-deeparg-identity"></div>
+        </div>
+        <div class="control">
+          <label>RGI identity threshold</label>
+          <div id="ab-class-rgi-identity"></div>
+        </div>
         <div class="control" style="min-width:260px;">
           <label>Gene classes (max 15)</label>
           <div id="ab-gene-select"></div>
@@ -1436,14 +1444,32 @@ function renderAbundance(el, habitat, navKey){
   chipToggle(document.getElementById('ab-pipeline-chips'),
     basicTools.map(t=>({value:t,label:TOOL_LABEL[t]||t})), selectedTools,
     (vals)=>{selectedTools=vals; drawAll();});
-  makeSelect(document.getElementById('ab-deeparg-identity'),
-    [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
-     {value:'DeepARG80',label:'≥80%'},{value:'DeepARG90',label:'≥90%'}],
-    deepargLevel, false, (v)=>{deepargLevel=v; drawAll();});
-  makeSelect(document.getElementById('ab-rgi-identity'),
-    [{value:'RGI-DIAMOND',label:'No threshold'},{value:'RGI-DIAMOND70',label:'≥70%'},
-     {value:'RGI-DIAMOND80',label:'≥80%'},{value:'RGI-DIAMOND90',label:'≥90%'}],
-    rgiLevel, false, (v)=>{rgiLevel=v; drawAll();});
+
+  const deepargOptions = [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
+     {value:'DeepARG80',label:'≥80%'},{value:'DeepARG90',label:'≥90%'}];
+  const rgiOptions = [{value:'RGI-DIAMOND',label:'No threshold'},{value:'RGI-DIAMOND70',label:'≥70%'},
+     {value:'RGI-DIAMOND80',label:'≥80%'},{value:'RGI-DIAMOND90',label:'≥90%'}];
+
+  function onDeepargChange(v){
+    deepargLevel=v;
+    [deepargSelect, classDeepargSelect].forEach(s=>{ if(s) s.value=v; });
+    drawAll();
+  }
+  function onRgiChange(v){
+    rgiLevel=v;
+    [rgiSelect, classRgiSelect].forEach(s=>{ if(s) s.value=v; });
+    drawAll();
+  }
+
+  const deepargSelect = makeSelect(document.getElementById('ab-deeparg-identity'),
+    deepargOptions, deepargLevel, false, onDeepargChange);
+  const rgiSelect = makeSelect(document.getElementById('ab-rgi-identity'),
+    rgiOptions, rgiLevel, false, onRgiChange);
+  const classDeepargSelect = makeSelect(document.getElementById('ab-class-deeparg-identity'),
+    deepargOptions, deepargLevel, false, onDeepargChange);
+  const classRgiSelect = makeSelect(document.getElementById('ab-class-rgi-identity'),
+    rgiOptions, rgiLevel, false, onRgiChange);
+
   makeSelect(document.getElementById('ab-habitat-select'),
     getHabitats().map(h=>({value:h,label:h})), habitat, false,
     (v)=>{habitat=v; setChosenHabitat(v); drawAll();});
