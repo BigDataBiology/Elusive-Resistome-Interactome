@@ -603,6 +603,18 @@ function renderAnalysisSection(el, habitat, navKey){
     return set;
   }
 
+  function identityToolSet(){
+    // add-alongside, like jaccardToolSet(), but tags threshold variants
+    // so drawIdentityDistribution() can render them as dotted lines
+    const set = [];
+    selectedPipelines.forEach(t=>{
+      set.push({tool:t, dashed:false});
+      if(t==='DeepARG' && deepargLevel!=='DeepARG') set.push({tool:deepargLevel, dashed:true});
+      if(t==='RGI-DIAMOND' && rgiLevel!=='RGI-DIAMOND') set.push({tool:rgiLevel, dashed:true});
+    });
+    return set;
+  }
+
   function sharedChartHeight(){
     const n = jaccardToolSet().length;
     return Math.max(420, n*44);
@@ -651,13 +663,19 @@ function renderAnalysisSection(el, habitat, navKey){
     const h = sharedChartHeight();
     const idist = habitat ? habIdentityDistribution(habitat) : DATA.identity_distribution;
     const x = idist.bin_centers;
-    const traces = idist.tools.map(t=>({
-      type:'scatter', mode:'lines', name: TOOL_LABEL[t.tool]||t.tool,
-      x, y: t.density,
-      line:{width:2.5, color: DB_COLOR[TOOL_DB[t.tool]]||'#1d3557',
-            dash: t.tool.startsWith('ABRicate') ? 'dash' : 'solid'},
-      hovertemplate: (TOOL_LABEL[t.tool]||t.tool)+' — %{x:.0f}% identity: %{y:.1%}<extra></extra>'
-    }));
+    const densityByTool = new Map(idist.tools.map(t=>[t.tool, t.density]));
+    const traces = identityToolSet()
+      .filter(entry=>densityByTool.has(entry.tool))
+      .map(entry=>{
+        const t = entry.tool;
+        return {
+          type:'scatter', mode:'lines', name: TOOL_LABEL[t]||t,
+          x, y: densityByTool.get(t),
+          line:{width:2.5, color: DB_COLOR[TOOL_DB[t]]||'#1d3557',
+                dash: entry.dashed ? 'dot' : (t.startsWith('ABRicate') ? 'dash' : 'solid')},
+          hovertemplate: (TOOL_LABEL[t]||t)+' — %{x:.0f}% identity: %{y:.1%}<extra></extra>'
+        };
+      });
     Plotly.react(`${P}args-identity`, traces, {...PLOTLY_LAYOUT_BASE, height:h,
       xaxis:{title:'Percent identity to reference', gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{title:'Density', gridcolor:'#dde2de', rangemode:'nonnegative'},
@@ -938,8 +956,12 @@ function renderCSCSection(el, habitat, navKey){
         <div id="${P}class-select"></div>
       </div>
       <div class="control" style="flex:1;min-width:280px;">
-        <label>Reference pipelines (1–6)</label>
+        <label>Reference pipelines (1–10)</label>
         <div id="${P}ref-chips"></div>
+      </div>
+      <div class="control" style="flex:1;min-width:280px;">
+        <label>Comparison pipelines</label>
+        <div id="${P}comp-chips"></div>
       </div>
     </div>
 
@@ -966,6 +988,8 @@ function renderCSCSection(el, habitat, navKey){
   // indices into basicTools; stable across identity-threshold swaps
   const defaultRefNames = ['DeepARG','fARGene','ABRicate-MEGARes','RGI-DIAMOND','AMRFinderPlus','ResFinder'];
   let selectedRefIndices = defaultRefNames.map(n=>basicTools.indexOf(n));
+  // comparison pipelines: which of the 10 basic pipelines to compare against; default all
+  let selectedCompIndices = basicTools.map((_,i)=>i);
 
   function toolSet(){
     return basicTools.map(t=>{
@@ -983,11 +1007,21 @@ function renderCSCSection(el, habitat, navKey){
       ts.map((t,i)=>({value:String(i), label:TOOL_LABEL[t]||t})),
       selectedRefIndices.map(String),
       (vals)=>{selectedRefIndices = vals.map(Number); draw();},
-      {min:1, max:6});
+      {min:1, max:10});
+  }
+
+  function refreshCompChips(){
+    const ts = toolSet();
+    chipToggle(document.getElementById(`${P}comp-chips`),
+      ts.map((t,i)=>({value:String(i), label:TOOL_LABEL[t]||t})),
+      selectedCompIndices.map(String),
+      (vals)=>{selectedCompIndices = vals.map(Number); draw();},
+      {min:1});
   }
 
   function draw(){
     const ts = toolSet();
+    const compTools = selectedCompIndices.map(i=>ts[i]);
     const classLabels = selectedClasses.map(wrapClassLabel);
     const refs = selectedRefIndices.map(i=>ts[i]);
     const n = refs.length;
@@ -1018,7 +1052,7 @@ function renderCSCSection(el, habitat, navKey){
         });
       }
 
-      const rows = csc.filter(d=>d.tool_ref===refTool && ts.includes(d.tool_comp)
+      const rows = csc.filter(d=>d.tool_ref===refTool && compTools.includes(d.tool_comp)
         && selectedClasses.includes(d.new_level));
       const meta = DATA.tool_meta.tools.find(t=>t.tool===refTool);
       const refColor = DB_COLOR[meta?meta.tools_db:''] || '#1d3557';
@@ -1060,14 +1094,15 @@ function renderCSCSection(el, habitat, navKey){
   makeSelect(document.getElementById(`${P}deeparg-identity`),
     [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
      {value:'DeepARG80',label:'≥80%'},{value:'DeepARG90',label:'≥90%'}],
-    deepargLevel, false, (v)=>{deepargLevel=v; refreshRefChips(); draw();});
+    deepargLevel, false, (v)=>{deepargLevel=v; refreshRefChips(); refreshCompChips(); draw();});
 
   makeSelect(document.getElementById(`${P}rgi-identity`),
     [{value:'RGI-DIAMOND',label:'No threshold'},{value:'RGI-DIAMOND70',label:'≥70%'},
      {value:'RGI-DIAMOND80',label:'≥80%'},{value:'RGI-DIAMOND90',label:'≥90%'}],
-    rgiLevel, false, (v)=>{rgiLevel=v; refreshRefChips(); draw();});
+    rgiLevel, false, (v)=>{rgiLevel=v; refreshRefChips(); refreshCompChips(); draw();});
 
   refreshRefChips();
+  refreshCompChips();
 
   if(habitat){
     makeSelect(document.getElementById(`${P}habitat-select`),
