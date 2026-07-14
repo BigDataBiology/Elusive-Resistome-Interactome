@@ -20,6 +20,51 @@ Run the steps in this order the first time; each script is safe to re-run
 (downloads are skipped if the file already exists; the rest just overwrite
 their output).
 
+## Requirements
+
+- `curl` (step 1)
+- Python 3 with `pandas` and `numpy` (steps 2–4) — see step 0 for setting
+  this up reproducibly with pixi
+- Any modern browser (step 5) — Plotly is loaded from a CDN, so an internet
+  connection is needed even though the app itself runs entirely client-side
+
+## 0. Set up the Python environment (recommended)
+
+The pipeline scripts (steps 2–4) need Python 3 with `pandas` and `numpy`.
+[pixi](https://pixi.sh) pins exact, reproducible versions of both (a
+`pixi.lock` file, like `package-lock.json`) so everyone running this gets
+the same environment, instead of relying on whatever's already on your
+system.
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | sh   # one-time install, then restart your terminal
+cd Elusive_app
+pixi init
+pixi add python pandas numpy
+```
+
+Then run any script through pixi so it uses that pinned environment:
+
+```bash
+pixi run python build_unigenes.py
+```
+
+or drop into a shell with the environment already active:
+
+```bash
+pixi shell
+python build_unigenes.py
+exit
+```
+
+Commit `pixi.toml` and `pixi.lock` to the repo; anyone else cloning it just
+runs `pixi install` to reproduce the exact same environment, no manual
+`pip install` needed.
+
+If you'd rather not install pixi, plain `pip install pandas numpy` (ideally
+inside a virtualenv) works too — pixi just makes the exact versions
+reproducible across machines.
+
 ## 1. Download the raw data
 
 ```bash
@@ -118,13 +163,6 @@ equally well if you'd rather not use the provided script.
 The app has a collapsible left-hand menu (Introduction / General analysis /
 Habitat level, each with its own submenu) instead of a single scrolling
 page — click any item to jump straight to that view.
-
-## Requirements
-
-- `curl` (step 1)
-- Python 3 with `pandas` and `numpy` (steps 2–4)
-- Any modern browser (step 5) — Plotly is loaded from a CDN, so an internet
-  connection is needed even though the app itself runs entirely client-side
 
 ## Standalone scripts (not used by the web app)
 

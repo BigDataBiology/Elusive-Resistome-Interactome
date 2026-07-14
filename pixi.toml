@@ -1,0 +1,18 @@
+[workspace]
+authors = ["indajuan <indajuan@users.noreply.github.com>"]
+channels = ["conda-forge"]
+name = "Elusive-Resistome-Interactome"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+download    = "./download_data.sh data_zenodo_github"
+unigenes    = "./build_unigenes.py"
+app-data    = "./build_app_data.py"
+core-pan    = "./build_core_pan_data.py"
+serve       = "./serve_webapp.sh"
+
+[dependencies]
+python = ">=3.14.6,<3.15"
+pandas = ">=3.0.3,<4"
+numpy = ">=2.5.1,<3"

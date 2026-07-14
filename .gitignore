@@ -3,3 +3,6 @@ unigenes.tsv
 webapp/data/
 .DS_Store
 __pycache__/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
