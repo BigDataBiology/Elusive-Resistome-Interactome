@@ -121,6 +121,7 @@ def main():
 
     print(f"Reading + rarefying args_abundances.tsv.gz (depth={depth:,.0f}, seed={seed}) ...")
     ar = pd.read_csv(data_dir / "args_abundances.tsv.gz", sep="\t")
+    ar = ar.reset_index().rename(columns={"index": "X"})
     print(f"  {len(ar):,} rows loaded ({time.time()-t0:.1f}s elapsed)")
     ar = rarefy(ar, metadata, depth=depth, seed=seed)
     ar = ar[ar["rarified_count"] > 0].rename(columns={"X": "query"})

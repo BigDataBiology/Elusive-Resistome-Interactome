@@ -100,6 +100,7 @@ def main():
 
     print(f"Reading args_abundances.tsv.gz ...")
     args_abundances = pd.read_csv(data_dir / "args_abundances.tsv.gz", sep="\t")
+    args_abundances = args_abundances.reset_index().rename(columns={"index": "X"})
 
     print(f"Reading metagenomes_metadata.csv ...")
     metadata = pd.read_csv(data_dir / "metagenomes_metadata.csv")
