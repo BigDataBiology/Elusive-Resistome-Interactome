@@ -221,6 +221,11 @@
   .stat .n.teal{color:var(--teal);} .stat .n.amber{color:var(--amber);}
   .stat .l{font-size:11.5px;color:var(--ink-dim);margin-top:6px;line-height:1.4;}
   .footnote{font-size:11.5px;color:var(--ink-dim);margin-top:10px;line-height:1.5;}
+  .habitat-info-note{
+    display:inline-block;font-size:12.5px;color:var(--ink-dim);line-height:1.5;
+    margin:0 0 14px;padding:8px 12px;background:var(--panel-2);border-radius:6px;
+  }
+  .habitat-info-note b{color:var(--ink);}
   ul.plain{padding-left:18px;font-size:14px;line-height:1.7;color:#33403c;}
   .pipeline-group-label{
     font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
@@ -277,7 +282,7 @@
 const DATA_FILES = [
   "tool_meta","arg_counts","gene_class_proportion","gene_class_order",
   "jaccard","jaccard_full","identity_distribution","identity_by_class",
-  "abundance_summary","richness_summary","habitat_n_samples","abundance_jitter_sample",
+  "abundance_summary","richness_summary","habitat_n_samples","habitat_total_args","abundance_jitter_sample",
   "abundance_class_summary","csc","table_s1_samples",
   "habitat_arg_counts","habitat_gene_class_proportion","habitat_jaccard_full",
   "habitat_identity_distribution","habitat_identity_by_class","habitat_csc"

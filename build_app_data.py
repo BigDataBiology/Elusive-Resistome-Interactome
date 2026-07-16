@@ -279,11 +279,14 @@ def build_habitat_unigenes(unigenes: pd.DataFrame, hab_csv_path: Path, out_dir: 
     hab_arg_counts, hab_gene_class_prop = {}, {}
     hab_jaccard, hab_identity_dist = {}, {}
     hab_identity_by_class, hab_csc = {}, {}
+    hab_total_args = []
 
     for h in HABITATS:
         uh = uh_all[uh_all["habitat"] == h]
         if uh.empty:
             continue
+
+        hab_total_args.append({"habitat": h, "n_total_args": int(uh["query"].nunique())})
 
         counts = (uh.drop_duplicates(["query", "tool"]).groupby("tool").size().reset_index(name="n"))
         counts = with_meta(counts)[["tool", "tools_labels", "tools_db", "texture", "n"]]
@@ -315,6 +318,7 @@ def build_habitat_unigenes(unigenes: pd.DataFrame, hab_csv_path: Path, out_dir: 
         hab_csc[h] = columnar(pd.DataFrame(crows)) if crows else {"columns": [], "data": []}
         print(f"  habitat '{h}' done ({len(crows):,} csc rows)")
 
+    dump(hab_total_args, out_dir / "habitat_total_args.json")
     dump(hab_arg_counts, out_dir / "habitat_arg_counts.json")
     dump(hab_gene_class_prop, out_dir / "habitat_gene_class_proportion.json")
     dump(hab_jaccard, out_dir / "habitat_jaccard_full.json")

@@ -355,7 +355,7 @@ function navigateTo(key){
   panel.appendChild(section);
 
   ROUTE_RENDER[key](section, habitat, key);
-  makeControlsCollapsible(section);
+  makeControlsCollapsible(section, habitat);
   updateSidebarActive();
   document.getElementById('content').scrollTo(0,0);
   window.scrollTo(0,0);
@@ -363,7 +363,8 @@ function navigateTo(key){
 
 // Filter/threshold/pipeline panels default to collapsed behind a "Filters"
 // toggle, so a page's charts show up before its controls do.
-function makeControlsCollapsible(root){
+function makeControlsCollapsible(root, habitat){
+  let isFirst = true;
   root.querySelectorAll('.controls').forEach(ctrl=>{
     const toggle = document.createElement('button');
     toggle.type = 'button';
@@ -375,7 +376,30 @@ function makeControlsCollapsible(root){
       const collapsed = ctrl.classList.toggle('controls-collapsed');
       toggle.querySelector('.controls-toggle-arrow').textContent = collapsed ? '▸' : '▾';
     });
+
+    if(isFirst && habitat){
+      isFirst = false;
+      const note = document.createElement('p');
+      note.id = 'habitat-info-note';
+      note.className = 'habitat-info-note';
+      toggle.parentNode.insertBefore(note, toggle.nextSibling);
+      updateHabitatInfoNote(habitat);
+    }
   });
+}
+
+// Keeps the habitat sample/ARG-count note in sync when a page's own habitat
+// selector changes it without a full navigateTo() re-render.
+function updateHabitatInfoNote(habitat){
+  const note = document.getElementById('habitat-info-note');
+  if(!note) return;
+  const nRow = DATA.habitat_n_samples.find(d=>d.habitat===habitat);
+  const argRow = DATA.habitat_total_args.find(d=>d.habitat===habitat);
+  const parts = [];
+  if(nRow) parts.push(`<b>${nRow.n_samples.toLocaleString()}</b> metagenomes analysed`);
+  if(argRow) parts.push(`<b>${argRow.n_total_args.toLocaleString()}</b> unique ARGs found`);
+  note.innerHTML = (parts.length ? `${parts.join(' &middot; ')} in <b>${habitat}</b>.` : '')
+    + ` You can change the habitat in the filters below, or from the left menu.`;
 }
 
 function updateSidebarActive(){
@@ -809,7 +833,7 @@ function renderAnalysisSection(el, habitat, navKey){
   if(habitat){
     makeSelect(document.getElementById(`${P}habitat-select`),
       getHabitats().map(h=>({value:h,label:h})), habitat, false,
-      (v)=>{habitat=v; setChosenHabitat(v); drawBar(); drawJaccard(); drawIdentityDistribution();});
+      (v)=>{habitat=v; setChosenHabitat(v); updateHabitatInfoNote(v); drawBar(); drawJaccard(); drawIdentityDistribution();});
   }
 
   chipToggle(document.getElementById(`${P}args-pipeline-chips`),
@@ -829,10 +853,10 @@ function renderAnalysisSection(el, habitat, navKey){
   drawBar(); drawJaccard(); drawIdentityDistribution();
 
   renderFAQ(el, habitat ? [] : [
-    {title: "Confusing lower bars for higher jumps",
+    {title: "Confusing lowering thresholds for larger resistomes",
      text: "<ul><li>Despite RGI using 'perfect' and 'strict' thresholds, it reports 90% of the ARGs with <80% identity level to the reference genes.</li><li>DeepARG reports 85% of the ARGs with <80% identity level to reference genes.</li><li>Does lowering sequence identity thresholds enable discovery of ARGs?</li><li>Would this strategy work for any gene class?</li></ul>"},
     {title: "Agree to disagree",
-     text: "<ul><li>The highest Jaccard index was observed between ResFinder and ABRicate-ResFinder (73%), and between ABRicate-CARD and ABRicate-MEGARes.</li></ul>"},
+     text: "<ul><li>The average Jaccard Index between pipelines is 16%.</li><li>ABRricate pipelines had an average Jaccard Index of 36%.</li><li>The average Jaccard Index of any pairwise comparison outside ABRricate pipelines was as low as 7%.</li></ul>"},
     {title: "Same map, same road, different destination",
      text: "<ul><li>ABRicate, compared to RGI, AMRFinderPlus, and ResFinder, shows different results.</li></ul>"}
   ]);
@@ -1034,7 +1058,7 @@ function renderGeneClassesSection(el, habitat, navKey){
   if(habitat){
     makeSelect(document.getElementById(`${P}habitat-select`),
       getHabitats().map(h=>({value:h,label:h})), habitat, false,
-      (v)=>{habitat=v; setChosenHabitat(v); drawIdentityByClass(); drawClassBar(); drawPropHeatmap();});
+      (v)=>{habitat=v; setChosenHabitat(v); updateHabitatInfoNote(v); drawIdentityByClass(); drawClassBar(); drawPropHeatmap();});
   }
 
   drawIdentityByClass(); drawClassBar(); drawPropHeatmap();
@@ -1231,7 +1255,7 @@ function renderCSCSection(el, habitat, navKey){
   if(habitat){
     makeSelect(document.getElementById(`${P}habitat-select`),
       getHabitats().map(h=>({value:h,label:h})), habitat, false,
-      (v)=>{habitat=v; setChosenHabitat(v); draw();});
+      (v)=>{habitat=v; setChosenHabitat(v); updateHabitatInfoNote(v); draw();});
   }
 
   makeCheckList(document.getElementById(`${P}class-select`),
@@ -1241,12 +1265,12 @@ function renderCSCSection(el, habitat, navKey){
   draw();
 
   renderFAQ(el, habitat ? [] : [
-    {title: "Confusing lower bars for longer jumps",
+    {title: "Confusing lowering thresholds for comprehensiveness",
      text: "<ul><li>Despite the large number of efflux pump and van genes, and the low identity level for those classes (and others), RGI and DeepARG did not extrapolate to report the genes that other pipelines reported.</li></ul>"},
     {title: "The long voyage starts in your known-walked neighborhood",
      text: "<ul><li>fARGene was the most comprehensive pipeline for the gene classes included in this tool. fARGene reports most genes that other pipelines report, albeit efflux pump are limited to tetracycline efflux pumps.</li></ul>"},
-    {title: "The apples that fall under and far from the tree",
-     text: "<ul><li>MEGARes reports the genes that ABRicate with the CARD, ResFinder, ARGANNOT, and NCBI datasets, as it is a compilation of them.</li><li>DeepARG, despite having CARD as a reference under the construction of DeepARG-DB, does not manage to capture the genes that RGI nor ABRicate-CARD do.</li></ul>"}
+    {title: "The apples that fall near and far from the tree",
+     text: "<ul><li>MEGARes reports the genes that ABRicate with the CARD, ResFinder, ARGANNOT, and NCBI datasets do, as it is a compilation of them.</li><li>DeepARG, despite having CARD as a reference under the construction of DeepARG-DB, does not manage to capture the genes that RGI nor ABRicate-CARD do.</li></ul>"}
   ]);
 }
 
@@ -1476,7 +1500,7 @@ function renderAbundance(el, habitat, navKey){
 
   makeSelect(document.getElementById('ab-habitat-select'),
     getHabitats().map(h=>({value:h,label:h})), habitat, false,
-    (v)=>{habitat=v; setChosenHabitat(v); drawAll();});
+    (v)=>{habitat=v; setChosenHabitat(v); updateHabitatInfoNote(v); drawAll();});
   makeCheckList(document.getElementById('ab-gene-select'),
     DATA.gene_class_order.all.map(c=>({value:c,label:c})), selectedGenes,
     (vals)=>{selectedGenes=vals.slice(0,15); drawClassAbundance();}, {min:1, max:15});
@@ -1710,7 +1734,7 @@ function renderPanCore(el, habitat, navKey){
 
   makeSelect(document.getElementById('pc-habitat-select'),
     getHabitats().map(h=>({value:h, label:h})), habitat, false,
-    (v)=>{habitat=v; setChosenHabitat(v); drawHabitatSamplesChart();});
+    (v)=>{habitat=v; setChosenHabitat(v); updateHabitatInfoNote(v); drawHabitatSamplesChart();});
   drawHabitatSamplesChart();
 
   chipToggle(document.getElementById('pc-pipeline-chips'),
