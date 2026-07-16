@@ -410,7 +410,7 @@ function updateHabitatInfoNote(habitat){
   if(nRow) parts.push(`<b>${nRow.n_samples.toLocaleString()}</b> metagenomes analysed`);
   if(argRow) parts.push(`<b>${argRow.n_total_args.toLocaleString()}</b> unique ARGs found`);
   note.innerHTML = (parts.length ? `${parts.join(' &middot; ')} in <b>${habitat}</b>.` : '')
-    + ` You can change the habitat in the filters below, or from the left menu.`;
+    + ` You can change the habitat in the filters, or from the left menu.`;
 }
 
 function updateSidebarActive(){
