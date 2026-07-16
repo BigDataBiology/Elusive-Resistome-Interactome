@@ -26,7 +26,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: webapp/data
-          key: webapp-data-v2
+          key: webapp-data-v3
 
       - name: Set up pixi
         if: steps.data-cache.outputs.cache-hit != 'true'
@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: webapp/data
-          key: webapp-data-v2
+          key: webapp-data-v3
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
