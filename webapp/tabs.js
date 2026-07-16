@@ -49,18 +49,27 @@ function plotToTSV(gd){
   const xAx = full.xaxis || {}, yAx = full.yaxis || {};
   const isHeat = traces.some(t => t.type === 'heatmap');
 
+  // Explicit column names set via layout.meta.tsv ({x, y, series, z}). This is a
+  // Plotly passthrough, so it never renders on the page or in image exports, letting
+  // us name TSV columns for axes we deliberately leave untitled.
+  const layoutIn = (gd && gd.layout) || {};
+  const tsvMeta = (layoutIn.meta && layoutIn.meta.tsv) || (full.meta && full.meta.tsv) || {};
+  // Read a visible axis/legend title, dropping Plotly's editable-mode placeholder
+  // ("Click to enter X axis title") that it injects for untitled axes.
+  const axisTitle = t => { const s = plotlyTitle(t); return /^Click to enter .* title$/.test(s) ? '' : s; };
+
   const used = new Set();
   const uniq = n => { const base = n || 'col'; let k = base, i = 2; while(used.has(k)) k = `${base}_${i++}`; used.add(k); return k; };
-  const sCol = named ? uniq(plotlyTitle(full.legend && full.legend.title) || 'series') : null;
+  const sCol = named ? uniq(tsvMeta.series || axisTitle(full.legend && full.legend.title) || 'series') : null;
   let xCol, yCol, zCol;
   if(isHeat){
-    xCol = uniq(plotlyTitle(xAx.title) || 'column');
-    yCol = uniq(plotlyTitle(yAx.title) || 'row');
+    xCol = uniq(tsvMeta.x || axisTitle(xAx.title) || 'column');
+    yCol = uniq(tsvMeta.y || axisTitle(yAx.title) || 'row');
     const heat = traces.find(t => t.type === 'heatmap');
-    zCol = uniq(plotlyTitle(heat.colorbar && heat.colorbar.title) || 'value');
+    zCol = uniq(tsvMeta.z || axisTitle(heat.colorbar && heat.colorbar.title) || 'value');
   } else {
-    xCol = uniq(plotlyTitle(xAx.title) || (xAx.type === 'category' ? 'label' : 'x'));
-    yCol = uniq(plotlyTitle(yAx.title) || (yAx.type === 'category' ? 'label' : 'y'));
+    xCol = uniq(tsvMeta.x || axisTitle(xAx.title) || (xAx.type === 'category' ? 'label' : 'x'));
+    yCol = uniq(tsvMeta.y || axisTitle(yAx.title) || (yAx.type === 'category' ? 'label' : 'y'));
   }
 
   const cols = [];
@@ -264,24 +273,25 @@ function buildToolLookups(){
 }
 
 // ---------------------------------------------------------------------------
-// SIDE-MENU NAVIGATION: a persistent left sidebar (Intro / General analysis /
-// Habitat level, each with a submenu) replaces the old continuous-scroll
+// SIDE-MENU NAVIGATION: a persistent left sidebar (Intro / Global analysis /
+// By Habitat, each with a submenu) replaces the old continuous-scroll
 // wizard. Only one section is rendered into #content-inner at a time.
 // ---------------------------------------------------------------------------
 const NAV_TREE = [
   {key:'intro', label:'Introduction'},
-  {key:'general', label:'General analysis', children:[
-    {key:'general-args', label:'ARGs by Pipeline'},
-    {key:'general-geneclasses', label:'Gene Classes'},
-    {key:'general-csc', label:'Class-specific Coverage'},
+  {key:'global', label:'Global analysis', children:[
+    {key:'global-args', label:'ARGs by Pipeline'},
+    {key:'global-geneclasses', label:'Gene Classes'},
+    {key:'global-csc', label:'Class-specific Coverage'},
   ]},
-  {key:'habitat', label:'Habitat level', children:[
+  {key:'habitat', label:'By Habitat', children:[
     {key:'habitat-args', label:'ARGs by Pipeline'},
     {key:'habitat-geneclasses', label:'Gene Classes'},
     {key:'habitat-abundance', label:'Abundance & Richness'},
     {key:'habitat-csc', label:'Class-specific Coverage'},
     {key:'habitat-pancore', label:'Pan-/Core-resistome'},
   ]},
+  {key:'about', label:'About & contacts'},
 ];
 const FLAT_ORDER = NAV_TREE.flatMap(n => n.children ? n.children.map(c=>c.key) : [n.key]);
 function prevKey(key){ const i=FLAT_ORDER.indexOf(key); return i>0 ? FLAT_ORDER[i-1] : null; }
@@ -330,14 +340,15 @@ function renderFAQ(container, answers){
 
 const ROUTE_RENDER = {
   'intro': (el)=>renderIntroSection(el),
-  'general-args': (el,h,k)=>renderAnalysisSection(el, null, k),
-  'general-geneclasses': (el,h,k)=>renderGeneClassesSection(el, null, k),
-  'general-csc': (el,h,k)=>renderCSCSection(el, null, k),
+  'global-args': (el,h,k)=>renderAnalysisSection(el, null, k),
+  'global-geneclasses': (el,h,k)=>renderGeneClassesSection(el, null, k),
+  'global-csc': (el,h,k)=>renderCSCSection(el, null, k),
   'habitat-args': (el,h,k)=>renderAnalysisSection(el, h, k),
   'habitat-abundance': (el,h,k)=>renderAbundance(el, h, k),
   'habitat-geneclasses': (el,h,k)=>renderGeneClassesSection(el, h, k),
   'habitat-csc': (el,h,k)=>renderCSCSection(el, h, k),
   'habitat-pancore': (el,h,k)=>renderPanCore(el, h, k),
+  'about': (el)=>renderAboutSection(el),
 };
 
 let ACTIVE_KEY = null;
@@ -533,7 +544,7 @@ function renderIntroSection(el){
       <button class="btn-primary" id="intro-continue-btn">Continue to analysis →</button>
     </div>
   `;
-  document.getElementById('intro-continue-btn').addEventListener('click', ()=>navigateTo('general-args'));
+  document.getElementById('intro-continue-btn').addEventListener('click', ()=>navigateTo('global-args'));
 
   drawCitationsChart();
 }
@@ -600,6 +611,7 @@ function plotCitations(rows, sourceLabel){
       hovertemplate:'%{y} — 2025\u201326: %{x:,}<extra></extra>'
     }
   ], {...PLOTLY_LAYOUT_BASE, barmode:'stack',
+    meta:{tsv:{series:'Period', y:'Tool', x:'Citations'}},
     height: 230, margin:{t:6,l:88,r:10,b:28},
     font:{...PLOTLY_LAYOUT_BASE.font, size:10.5},
     xaxis:{title:'', gridcolor:'#dde2de', tickfont:{size:9.5}, rangemode:'nonnegative'},
@@ -780,6 +792,7 @@ function renderAnalysisSection(el, habitat, navKey){
       marker:{color: rows.map(d=>DB_COLOR[d.tools_db]||'#1d3557'), line:{color:'#ffffff', width:1}},
       hovertemplate: '%{y}: %{x:,}<extra></extra>'
     }], {...PLOTLY_LAYOUT_BASE, height:h,
+         meta:{tsv:{y:'Tool'}},
          margin:{t:8,l:20,r:8,b:75},
          xaxis:{title:'Number of ARGs', gridcolor:'#dde2de', rangemode:'nonnegative'},
          yaxis:{automargin:true, autorange:'reversed', tickfont:{size:9.5}, tickangle:-45}}, PLOTLY_CONFIG);
@@ -802,6 +815,7 @@ function renderAnalysisSection(el, habitat, navKey){
       hovertemplate:'%{y} vs %{x}: %{z:.0%}<extra></extra>',
       colorbar:{tickformat:'.0%', thickness:10}
     }], {...PLOTLY_LAYOUT_BASE, height:h,
+         meta:{tsv:{x:'Tool', y:'Tool', z:'Jaccard similarity'}},
          margin:{t:8,l:20,r:8,b:75},
          xaxis:{tickangle:-90, automargin:true, tickfont:{size:8.5}},
          yaxis:{autorange:'reversed', automargin:true, tickfont:{size:9.5}, tickangle:-45}}, PLOTLY_CONFIG);
@@ -825,6 +839,7 @@ function renderAnalysisSection(el, habitat, navKey){
         };
       });
     plot(`${P}args-identity`, traces, {...PLOTLY_LAYOUT_BASE, height:h,
+      meta:{tsv:{series:'Tool'}},
       xaxis:{title:'Percent identity to reference', gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{title:'Density', gridcolor:'#dde2de', rangemode:'nonnegative'},
       legend:{orientation:'h', y:-0.3}}, PLOTLY_CONFIG);
@@ -975,6 +990,7 @@ function renderGeneClassesSection(el, habitat, navKey){
       };
     });
     plot(`${P}identity-by-class`, traces, {...PLOTLY_LAYOUT_BASE, boxmode:'group',
+      meta:{tsv:{y:'Gene class', series:'Tool'}},
       height: Math.max(460, classes.length*42), margin:{t:10,l:20,r:8,b:95},
       xaxis:{title:'Percent identity', range:[0,102], gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{automargin:true, autorange:'reversed', categoryorder:'array', categoryarray:classLabels, tickangle:-45, tickfont:{size:9.5}},
@@ -1009,6 +1025,7 @@ function renderGeneClassesSection(el, habitat, navKey){
     }));
 
     plot(`${P}class-bar`, traces, {...PLOTLY_LAYOUT_BASE, barmode:'group',
+      meta:{tsv:{y:'Gene class', series:'Tool'}},
       height: Math.max(500, classes.length*70),
       margin:{t:50,l:20,r:20,b:60},
       shapes: dividers,
@@ -1032,6 +1049,7 @@ function renderGeneClassesSection(el, habitat, navKey){
       hovertemplate:'%{y} — %{x}: %{z:.1%}<extra></extra>',
       colorbar:{tickformat:'.0%', thickness:10}
     }], {...PLOTLY_LAYOUT_BASE, height: Math.max(460, classes.length*42),
+         meta:{tsv:{x:'Tool', y:'Gene class', z:'Proportion'}},
          margin:{t:10,l:20,r:8,b:95},
          xaxis:{tickangle:-90, automargin:true, tickfont:{size:9.5}},
          yaxis:{automargin:true, tickfont:{size:9.5}, autorange:'reversed', tickangle:-45}}, PLOTLY_CONFIG);
@@ -1180,6 +1198,7 @@ function renderCSCSection(el, habitat, navKey){
     const traces = [];
     const dividers = [];
     const layout = {...PLOTLY_LAYOUT_BASE,
+      meta:{tsv:{x:'CSC', y:'Gene class', series:'Reference tool'}},
       height: Math.max(480, classLabels.length*46),
       margin:{t:40,l:20,r:20,b:60},
       showlegend:false,
@@ -1397,6 +1416,7 @@ function renderAbundance(el, habitat, navKey){
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
     plot('ab-abundance-box', boxTrace(summary, jitter, 'abundance'),
       {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
+       meta:{tsv:{x:'Tool'}},
        yaxis:{title:'Relative abundance (reads/million)', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
        xaxis:{tickangle:-45}}, PLOTLY_CONFIG);
@@ -1406,6 +1426,7 @@ function renderAbundance(el, habitat, navKey){
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
     plot('ab-richness-box', boxTrace(summary, jitter, 'richness'),
       {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
+       meta:{tsv:{x:'Tool'}},
        yaxis:{title:'Richness', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
        xaxis:{tickangle:-45}}, PLOTLY_CONFIG);
@@ -1420,6 +1441,7 @@ function renderAbundance(el, habitat, navKey){
     const traces = [];
     const dividers = [];
     const layout = {...PLOTLY_LAYOUT_BASE,
+      meta:{tsv:{x:'Relative abundance', y:'Tool', series:'Tool'}},
       height: Math.max(320, tools.length*40),
       margin:{t:40,l:20,r:20,b:60},
       showlegend:false,
@@ -1726,6 +1748,7 @@ function renderPanCore(el, habitat, navKey){
       marker:{color: rows.map(r=>r.habitat===habitat ? '#e76f51' : '#8a9a95')},
       hovertemplate:'%{y}: %{x:,} samples<extra></extra>'
     }], {...PLOTLY_LAYOUT_BASE, height:240,
+      meta:{tsv:{y:'Habitat', x:'Number of samples'}},
       margin:{t:6,l:20,r:8,b:28},
       font:{...PLOTLY_LAYOUT_BASE.font, size:10},
       xaxis:{title:'', gridcolor:'#dde2de', rangemode:'nonnegative'},
@@ -1788,6 +1811,7 @@ function renderPanCore(el, habitat, navKey){
       marker:{color: rows.map(r=>DB_COLOR[TOOL_DB[r.tool]]||'#1d3557'), line:{color:'#ffffff', width:1}},
       hovertemplate:'%{y}: %{x:,}<extra></extra>'
     }], {...PLOTLY_LAYOUT_BASE, height: Math.max(160, rows.length*36),
+      meta:{tsv:{y:'Tool'}},
       margin:{t:8,l:20,r:8,b:40},
       xaxis:{title:'Number of genes', gridcolor:'#dde2de', rangemode:'nonnegative'},
       yaxis:{automargin:true, autorange:'reversed'}}, PLOTLY_CONFIG);
@@ -1909,7 +1933,7 @@ function renderOverlap(el){
       colorscale:[[0,'#eef0ee'],[1,'#1d3557']], zmin:0, zmax:1,
       hovertemplate:'%{y} — %{x}: %{z:.0%}<extra></extra>',
       colorbar:{tickformat:'.0%', thickness:14}
-    }], {...PLOTLY_LAYOUT_BASE, height: Math.max(360, classes.length*30), xaxis:{tickangle:-45}, yaxis:{automargin:true}}, PLOTLY_CONFIG);
+    }], {...PLOTLY_LAYOUT_BASE, height: Math.max(360, classes.length*30), meta:{tsv:{x:'Tool', y:'Gene class', z:'CSC'}}, xaxis:{tickangle:-45}, yaxis:{automargin:true}}, PLOTLY_CONFIG);
 
     if(plotEl.removeAllListeners) plotEl.removeAllListeners('plotly_click');
     plotEl.on('plotly_click', function(evt){
@@ -1930,6 +1954,7 @@ function renderOverlap(el){
       marker:{color:'#2a9d8f'},
       hovertemplate:'vs %{y}: %{x:.0%}<extra></extra>'
     }], {...PLOTLY_LAYOUT_BASE, height: Math.max(260, rows.length*24),
+      meta:{tsv:{y:'Tool'}},
       xaxis:{title:'CSC', tickformat:'.0%', range:[0,1], gridcolor:'#dde2de', rangemode:'nonnegative'}, yaxis:{automargin:true}}, PLOTLY_CONFIG);
   }
 
@@ -1999,4 +2024,52 @@ function renderTables(el){
   });
 
   draw();
+}
+
+// ---------------------------------------------------------------------------
+// ABOUT & CONTACTS
+// ---------------------------------------------------------------------------
+function renderAboutSection(el){
+  el.innerHTML = `
+    <h2>About &amp; Contacts</h2>
+    <p class="sub">What this explorer is, where the data and code live, and who to reach.</p>
+
+    <div class="card">
+      <h3>About this explorer</h3>
+      <p class="desc">The <strong>ARG Pipeline Explorer</strong> is an interactive companion to the study
+        <em><a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">"The elusive resistome: a global comparison reveals large discrepancies among detection pipelines"</a></em>
+        (Inda-Díaz et al., bioRxiv 2026). It lets you interactively compare ten antibiotic-resistance-gene (ARG)
+        detection pipelines &mdash; DeepARG, RGI, ResFinder, five ABRicate databases, AMRFinderPlus and fARGene &mdash;
+        run on the same 278.8M unigenes of the
+        <a href="https://gmgc.embl.de/" target="_blank" rel="noopener">Global Microbial Gene Catalog (GMGC v1.0)</a>,
+        across 13 habitats and 11,519 metagenomic samples. All charts are computed client-side from the published data.</p>
+    </div>
+
+    <div class="card">
+      <h3>Publication</h3>
+      <p class="desc">Inda-Díaz <em>et al.</em> (2026). <em>The elusive resistome: a global comparison reveals
+        large discrepancies among detection pipelines.</em> bioRxiv.</p>
+      <ul class="plain">
+        <li>Preprint: <a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">biorxiv.org/content/10.64898/2026.05.11.724158v1</a></li>
+      </ul>
+      <p class="footnote">The full author list and corresponding-author details are given in the preprint.</p>
+    </div>
+
+    <div class="card">
+      <h3>Data &amp; code availability</h3>
+      <ul class="plain">
+        <li><strong>Data:</strong> <a href="https://doi.org/10.5281/zenodo.19702877" target="_blank" rel="noopener">Zenodo record 19702877</a> (https://doi.org/10.5281/zenodo.19702877)</li>
+        <li><strong>This explorer &amp; data pipeline:</strong> <a href="https://github.com/indajuan/Elusive-Resistome-Interactome" target="_blank" rel="noopener">github.com/indajuan/Elusive-Resistome-Interactome</a></li>
+        <li><strong>ARG-tool clustering:</strong> <a href="https://github.com/BigDataBiology/IndaDiaz2026__ARGTools" target="_blank" rel="noopener">github.com/BigDataBiology/IndaDiaz2026__ARGTools</a></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Contacts</h3>
+      <ul class="plain">
+        <li><strong>Juan Inda Diaz</strong>: <a href="mailto:juan.inda@qut.edu.au">juan.inda@qut.edu.au</a></li>
+        <li><strong>Luis Pedro Coelho</strong>: <a href="mailto:luis@luispedro.org">luis@luispedro.org</a></li>
+      </ul>
+    </div>
+  `;
 }

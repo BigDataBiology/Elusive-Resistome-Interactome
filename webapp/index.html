@@ -265,6 +265,17 @@
   .habitat-picker{margin-top:4px;}
   .habitat-picker select{width:100%;padding:10px;font-size:13.5px;}
 
+  #site-footer{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:var(--panel);border-top:1px solid var(--line);
+    color:var(--ink-dim);font-size:12.5px;
+    padding:8px 16px;text-align:center;line-height:1.4;
+    box-shadow:0 -2px 8px rgba(0,0,0,0.05);
+  }
+  #site-footer a{color:var(--teal);text-decoration:none;font-weight:600;}
+  #site-footer a:hover{text-decoration:underline;}
+  #content-inner{padding-bottom:56px;}
+  #sidebar{padding-bottom:56px;}
 </style>
 </head>
 <body>
@@ -277,6 +288,10 @@
   </div></main>
 </div>
 <button id="sidebar-show-btn" type="button" title="Show menu">☰</button>
+<footer id="site-footer">
+  Companion to <em>“The elusive resistome: a global comparison reveals large discrepancies among detection pipelines”</em> (Inda-Díaz et al., 2026) —
+  <a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">read the preprint on bioRxiv</a>
+</footer>
 
 <script>
 const DATA_FILES = [
