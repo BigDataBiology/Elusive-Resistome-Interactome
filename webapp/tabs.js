@@ -370,6 +370,19 @@ function navigateTo(key){
   updateSidebarActive();
   document.getElementById('content').scrollTo(0,0);
   window.scrollTo(0,0);
+  trackPageView(key, habitat);
+}
+
+// GA4 only auto-tracks the initial load; this SPA swaps views without a reload,
+// so report each in-app navigation as a virtual page_view.
+function trackPageView(key, habitat){
+  if(typeof gtag !== 'function') return;
+  const path = '/' + key + (habitat ? '/' + habitat : '');
+  gtag('event', 'page_view', {
+    page_path: path,
+    page_location: location.origin + location.pathname + '#' + path,
+    page_title: document.title,
+  });
 }
 
 // Filter/threshold/pipeline panels default to collapsed behind a "Filters"
