@@ -282,6 +282,7 @@ const NAV_TREE = [
     {key:'habitat-csc', label:'Class-specific Coverage'},
     {key:'habitat-pancore', label:'Pan-/Core-resistome'},
   ]},
+  {key:'about', label:'About & contacts'},
 ];
 const FLAT_ORDER = NAV_TREE.flatMap(n => n.children ? n.children.map(c=>c.key) : [n.key]);
 function prevKey(key){ const i=FLAT_ORDER.indexOf(key); return i>0 ? FLAT_ORDER[i-1] : null; }
@@ -338,6 +339,7 @@ const ROUTE_RENDER = {
   'habitat-geneclasses': (el,h,k)=>renderGeneClassesSection(el, h, k),
   'habitat-csc': (el,h,k)=>renderCSCSection(el, h, k),
   'habitat-pancore': (el,h,k)=>renderPanCore(el, h, k),
+  'about': (el)=>renderAboutSection(el),
 };
 
 let ACTIVE_KEY = null;
@@ -1975,4 +1977,52 @@ function renderTables(el){
   });
 
   draw();
+}
+
+// ---------------------------------------------------------------------------
+// ABOUT & CONTACTS
+// ---------------------------------------------------------------------------
+function renderAboutSection(el){
+  el.innerHTML = `
+    <h2>About &amp; Contacts</h2>
+    <p class="sub">What this explorer is, where the data and code live, and who to reach.</p>
+
+    <div class="card">
+      <h3>About this explorer</h3>
+      <p class="desc">The <strong>ARG Pipeline Explorer</strong> is an interactive companion to the study
+        <em><a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">"The elusive resistome: a global comparison reveals large discrepancies among detection pipelines"</a></em>
+        (Inda-Díaz et al., bioRxiv 2026). It lets you interactively compare ten antibiotic-resistance-gene (ARG)
+        detection pipelines &mdash; DeepARG, RGI, ResFinder, five ABRicate databases, AMRFinderPlus and fARGene &mdash;
+        run on the same 278.8M unigenes of the
+        <a href="https://gmgc.embl.de/" target="_blank" rel="noopener">Global Microbial Gene Catalog (GMGC v1.0)</a>,
+        across 13 habitats and 11,519 metagenomic samples. All charts are computed client-side from the published data.</p>
+    </div>
+
+    <div class="card">
+      <h3>Publication</h3>
+      <p class="desc">Inda-Díaz <em>et al.</em> (2026). <em>The elusive resistome: a global comparison reveals
+        large discrepancies among detection pipelines.</em> bioRxiv.</p>
+      <ul class="plain">
+        <li>Preprint: <a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">biorxiv.org/content/10.64898/2026.05.11.724158v1</a></li>
+      </ul>
+      <p class="footnote">The full author list and corresponding-author details are given in the preprint.</p>
+    </div>
+
+    <div class="card">
+      <h3>Data &amp; code availability</h3>
+      <ul class="plain">
+        <li><strong>Data:</strong> <a href="https://doi.org/10.5281/zenodo.19702877" target="_blank" rel="noopener">Zenodo record 19702877</a> (https://doi.org/10.5281/zenodo.19702877)</li>
+        <li><strong>This explorer &amp; data pipeline:</strong> <a href="https://github.com/indajuan/Elusive-Resistome-Interactome" target="_blank" rel="noopener">github.com/indajuan/Elusive-Resistome-Interactome</a></li>
+        <li><strong>ARG-tool clustering:</strong> <a href="https://github.com/BigDataBiology/IndaDiaz2026__ARGTools" target="_blank" rel="noopener">github.com/BigDataBiology/IndaDiaz2026__ARGTools</a></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Contacts</h3>
+      <ul class="plain">
+        <li><strong>Juan Inda Diaz</strong>: <a href="mailto:juan.inda@qut.edu.au">juan.inda@qut.edu.au</a></li>
+        <li><strong>Luis Pedro Coelho</strong>: <a href="mailto:luis@luispedro.org">luis@luispedro.org</a></li>
+      </ul>
+    </div>
+  `;
 }
