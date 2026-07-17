@@ -607,7 +607,7 @@ function renderIntroSection(el){
 
   drawCitationsChart();
 
-  renderFAQ(el, [{title: "Publications – Contact us if you would like us to consider another publication in the citation's count", text: buildPublicationsList()}], null);
+  renderFAQ(el, [{title: "Publications – Contact us if you would like another publication considered for the citation counter", text: buildPublicationsList()}], null);
 }
 
 function buildPublicationsList(){
