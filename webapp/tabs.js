@@ -489,7 +489,16 @@ function buildSidebar(){
       btn.className = 'nav-item';
       btn.dataset.key = node.key;
       btn.textContent = node.label;
-      btn.style.fontWeight = '600';
+      if(node.key==='compare'){
+        // Visually match the "Global analysis"/"By Habitat" group-title
+        // typography, even though this item has no children of its own.
+        btn.style.fontFamily = "'JetBrains Mono', monospace";
+        btn.style.fontSize = '11px';
+        btn.style.letterSpacing = '.03em';
+        btn.style.textTransform = 'uppercase';
+      } else {
+        btn.style.fontWeight = '600';
+      }
       btn.addEventListener('click', ()=>navigateTo(node.key));
       nav.appendChild(btn);
       return;
@@ -1965,6 +1974,11 @@ function renderCompareSection(el, navKey){
     <h2>Abundance &amp; Richness across habitats</h2>
     <p class="sub">Per-sample ARG relative abundance and richness for each pipeline across habitats. Boxes show the median, interquartile range, and whiskers over all samples in a habitat. Group by pipeline to compare habitats within a tool, or by habitat to compare tools within an environment.</p>
 
+    <div class="groupby-toggle" id="${P}groupby-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
+      <button type="button" class="toggle-btn on" id="${P}groupby-habitat-btn">Group by habitat</button>
+      <button type="button" class="toggle-btn" id="${P}groupby-tool-btn">Group by pipeline</button>
+    </div>
+
     <div class="controls">
       <div class="control" style="flex:1;min-width:220px;">
         <label>Habitats</label>
@@ -1973,10 +1987,6 @@ function renderCompareSection(el, navKey){
       <div class="control" style="flex:1;min-width:260px;">
         <label>Pipelines</label>
         <div id="${P}pipeline-chips"></div>
-      </div>
-      <div class="control">
-        <label>Group by</label>
-        <div id="${P}groupby-select"></div>
       </div>
       <div class="control">
         <label>DeepARG identity threshold</label>
@@ -2013,7 +2023,7 @@ function renderCompareSection(el, navKey){
   let selectedPipelines = [...basicTools];
   let deepargLevel = 'DeepARG';
   let rgiLevel = 'RGI-DIAMOND';
-  let groupBy = 'tool'; // 'tool' | 'habitat'
+  let groupBy = 'habitat'; // 'tool' | 'habitat' -- 'habitat' is the default
 
   function toolSet(){
     // swap: the chosen identity level replaces the base pipeline
@@ -2039,13 +2049,17 @@ function renderCompareSection(el, navKey){
       hovertemplate: `${name} — %{x}<br>Median: %{median:,.1f}<br>Q1: %{q1:,.1f} · Q3: %{q3:,.1f}<extra></extra>`
     });
     if(groupBy==='tool'){
+      // Group by pipeline: pipelines on the x-axis, one box per habitat,
+      // habitats coloured with the generic compare palette (habitats have no
+      // "default color" elsewhere in the app).
       const cmap = comparePaletteMap(selectedHabitats);
       return selectedHabitats.map(h=>
         box(h, cmap[h], toolLabels, tools.map(t=>summaryData.find(d=>d.habitat===h && d.tool===t))));
     }
-    const cmap = comparePaletteMap(tools);
+    // Group by habitat: habitats on the x-axis, one box per pipeline,
+    // pipelines coloured with the app's default per-pipeline colors.
     return tools.map(t=>
-      box(TOOL_LABEL[t]||t, cmap[t], selectedHabitats,
+      box(TOOL_LABEL[t]||t, DB_COLOR[TOOL_DB[t]]||'#1d3557', selectedHabitats,
           selectedHabitats.map(h=>summaryData.find(d=>d.habitat===h && d.tool===t))));
   }
 
@@ -2072,10 +2086,16 @@ function renderCompareSection(el, navKey){
     basicTools.map(t=>({value:t,label:TOOL_LABEL[t]||t})), selectedPipelines,
     (vals)=>{selectedPipelines = vals; drawAll();}, {min:1});
 
-  makeSelect(document.getElementById(`${P}groupby-select`),
-    [{value:'tool', label:'Pipeline, then habitat'},
-     {value:'habitat', label:'Habitat, then pipeline'}],
-    groupBy, false, (v)=>{groupBy=v; drawAll();});
+  const groupByHabitatBtn = document.getElementById(`${P}groupby-habitat-btn`);
+  const groupByToolBtn = document.getElementById(`${P}groupby-tool-btn`);
+  function setGroupBy(v){
+    groupBy = v;
+    groupByHabitatBtn.classList.toggle('on', v==='habitat');
+    groupByToolBtn.classList.toggle('on', v==='tool');
+    drawAll();
+  }
+  groupByHabitatBtn.addEventListener('click', ()=>setGroupBy('habitat'));
+  groupByToolBtn.addEventListener('click', ()=>setGroupBy('tool'));
 
   makeSelect(document.getElementById(`${P}deeparg-identity`),
     [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
