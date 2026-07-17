@@ -48,6 +48,9 @@ function plotToTSV(gd){
   const full = (gd && (gd._fullLayout || gd.layout)) || {};
   const xAx = full.xaxis || {}, yAx = full.yaxis || {};
   const isHeat = traces.some(t => t.type === 'heatmap');
+  // Box traces built from precomputed quartiles (q1/median/q3/fences) carry no
+  // x/y sample arrays, so they need dedicated stat columns in the export.
+  const isBox = traces.some(t => t.type === 'box' && (t.q1 || t.median || t.lowerfence));
 
   // Explicit column names set via layout.meta.tsv ({x, y, series, z}). This is a
   // Plotly passthrough, so it never renders on the page or in image exports, letting
@@ -72,6 +75,22 @@ function plotToTSV(gd){
     yCol = uniq(tsvMeta.y || axisTitle(yAx.title) || (yAx.type === 'category' ? 'label' : 'y'));
   }
 
+  // For precomputed box plots, the category sits on one axis and the five
+  // summary statistics replace the value axis; name those columns off the
+  // value-axis title so the export carries the actual numbers.
+  let lwCol, q1Col, medCol, q3Col, uwCol;
+  if(isBox){
+    const bt = traces.find(t => t.type === 'box');
+    const horiz = bt.orientation === 'h';
+    const valBase = (horiz ? (tsvMeta.x || axisTitle(xAx.title))
+                           : (tsvMeta.y || axisTitle(yAx.title))) || 'value';
+    lwCol  = uniq('lower whisker');
+    q1Col  = uniq(valBase + ' Q1');
+    medCol = uniq(valBase + ' median');
+    q3Col  = uniq(valBase + ' Q3');
+    uwCol  = uniq('upper whisker');
+  }
+
   const cols = [];
   const rows = [];
   const addCol = k => { if(!cols.includes(k)) cols.push(k); };
@@ -86,6 +105,19 @@ function plotToTSV(gd){
           r[xCol] = xs[j]; r[yCol] = ys[i]; r[zCol] = z[i][j];
           Object.keys(r).forEach(addCol); rows.push(r);
         }
+    } else if(tr.type === 'box' && (tr.q1 || tr.median || tr.lowerfence)){
+      const horiz = tr.orientation === 'h';
+      const cats = (horiz ? tr.y : tr.x) || [];
+      const catCol = horiz ? yCol : xCol;
+      const q1=tr.q1||[], md=tr.median||[], q3=tr.q3||[], lf=tr.lowerfence||[], uf=tr.upperfence||[];
+      const n = Math.max(cats.length, md.length, q1.length);
+      for(let i=0;i<n;i++){
+        const r = {};
+        if(sCol && name) r[sCol] = name;
+        if(cats.length) r[catCol] = cats[i];
+        r[lwCol] = lf[i]; r[q1Col] = q1[i]; r[medCol] = md[i]; r[q3Col] = q3[i]; r[uwCol] = uf[i];
+        Object.keys(r).forEach(addCol); rows.push(r);
+      }
     } else {
       const x = tr.x||[], y = tr.y||[];
       const n = Math.max(x.length, y.length);
@@ -291,6 +323,7 @@ const NAV_TREE = [
     {key:'habitat-csc', label:'Class-specific Coverage'},
     {key:'habitat-pancore', label:'Pan-/Core-resistome'},
   ]},
+  {key:'compare', label:'Compare Habitats'},
   {key:'about', label:'About & contacts'},
 ];
 const FLAT_ORDER = NAV_TREE.flatMap(n => n.children ? n.children.map(c=>c.key) : [n.key]);
@@ -348,6 +381,7 @@ const ROUTE_RENDER = {
   'habitat-geneclasses': (el,h,k)=>renderGeneClassesSection(el, h, k),
   'habitat-csc': (el,h,k)=>renderCSCSection(el, h, k),
   'habitat-pancore': (el,h,k)=>renderPanCore(el, h, k),
+  'compare': (el,h,k)=>renderCompareSection(el, k),
   'about': (el)=>renderAboutSection(el),
 };
 
@@ -1890,6 +1924,170 @@ function renderPanCore(el, habitat, navKey){
       btn.innerHTML = originalLabel;
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// COMPARE HABITATS TAB
+//
+// Cross-habitat comparison: the user picks several habitats and several
+// pipelines and sees per-sample abundance & richness side by side, grouped
+// either by pipeline (habitats clustered within each pipeline) or by habitat
+// (pipelines clustered within each habitat). Total ARG counts are deliberately
+// NOT compared here -- habitats differ hugely in sample count, so raw totals
+// across habitats would mislead. All source data is already eager-loaded.
+// ---------------------------------------------------------------------------
+
+// Distinct categorical palette used to colour whichever dimension (habitat or
+// pipeline) is the grouped series. Independent of DB_COLOR so neighbouring
+// bars/boxes never collide on the same colour.
+const COMPARE_PALETTE = [
+  '#1d3557','#2a9d8f','#e76f51','#7c5cbf','#6a9c3f','#c9962e','#6b7c77',
+  '#d4649b','#3d8bcd','#b5651d','#4c9f70','#a83e3e','#8a6d3b','#e0a458',
+  '#9b5de5','#00b4d8','#f15bb5','#606c38','#bc6c25','#457b9d','#9d4edd'
+];
+function comparePaletteMap(values){
+  const m = {};
+  values.forEach((v,i)=>{ m[v] = COMPARE_PALETTE[i % COMPARE_PALETTE.length]; });
+  return m;
+}
+
+function renderCompareSection(el, navKey){
+  const basicTools = DATA.tool_meta.basic_tools;
+  const allHabitats = getHabitats();
+  // A spread of habitats across host/environmental types, so the first view is
+  // informative before the user narrows things down.
+  const defaultHabitats = ['human gut','human oral','wastewater','marine','soil']
+    .filter(h=>allHabitats.includes(h));
+  const P = 'cmp-ab-';
+
+  el.innerHTML = `
+    <button class="flow-back" id="${P}back-btn">← Back</button>
+    <h2>Abundance &amp; Richness across habitats</h2>
+    <p class="sub">Per-sample ARG relative abundance and richness for each pipeline across habitats. Boxes show the median, interquartile range, and whiskers over all samples in a habitat. Group by pipeline to compare habitats within a tool, or by habitat to compare tools within an environment.</p>
+
+    <div class="controls">
+      <div class="control" style="flex:1;min-width:220px;">
+        <label>Habitats</label>
+        <div id="${P}habitat-select"></div>
+      </div>
+      <div class="control" style="flex:1;min-width:260px;">
+        <label>Pipelines</label>
+        <div id="${P}pipeline-chips"></div>
+      </div>
+      <div class="control">
+        <label>Group by</label>
+        <div id="${P}groupby-select"></div>
+      </div>
+      <div class="control">
+        <label>DeepARG identity threshold</label>
+        <div id="${P}deeparg-identity"></div>
+      </div>
+      <div class="control">
+        <label>RGI identity threshold</label>
+        <div id="${P}rgi-identity"></div>
+      </div>
+    </div>
+
+    <div class="card" id="${P}card-abundance">
+      <h3>Relative abundance per sample</h3>
+      <p class="desc">Distribution of per-sample ARG relative abundance (reads/million) across samples in each habitat.</p>
+      <div id="${P}abundance-box" class="plotwrap"></div>
+    </div>
+    <div class="card" id="${P}card-richness">
+      <h3>Richness per sample</h3>
+      <p class="desc">Distribution of per-sample ARG richness (number of distinct ARGs) across samples in each habitat.</p>
+      <div id="${P}richness-box" class="plotwrap"></div>
+    </div>
+
+    <div class="wizard-actions" style="justify-content:space-between;">
+      <button class="btn-secondary" id="${P}back-btn-2">← Back</button>
+      <button class="btn-primary" id="${P}continue-btn">Continue to About →</button>
+    </div>
+  `;
+
+  document.getElementById(`${P}back-btn`).addEventListener('click', ()=>navigateTo(prevKey(navKey)));
+  document.getElementById(`${P}back-btn-2`).addEventListener('click', ()=>navigateTo(prevKey(navKey)));
+  document.getElementById(`${P}continue-btn`).addEventListener('click', ()=>navigateTo(nextKey(navKey)));
+
+  let selectedHabitats = defaultHabitats.length ? [...defaultHabitats] : allHabitats.slice(0,5);
+  let selectedPipelines = [...basicTools];
+  let deepargLevel = 'DeepARG';
+  let rgiLevel = 'RGI-DIAMOND';
+  let groupBy = 'tool'; // 'tool' | 'habitat'
+
+  function toolSet(){
+    // swap: the chosen identity level replaces the base pipeline
+    return selectedPipelines.map(t=>{
+      if(t==='DeepARG') return deepargLevel;
+      if(t==='RGI-DIAMOND') return rgiLevel;
+      return t;
+    });
+  }
+
+  // Common sizing: enough width per grouped cluster to stay legible.
+  function chartHeight(){ return 460; }
+
+  function boxTraces(summaryData){
+    const tools = toolSet();
+    const toolLabels = tools.map(t=>TOOL_LABEL[t]||t);
+    const box = (name, color, cats, rows) => ({
+      type:'box', name, x: cats,
+      q1: rows.map(r=>r?r.q25:null), median: rows.map(r=>r?r.median:null),
+      q3: rows.map(r=>r?r.q75:null), lowerfence: rows.map(r=>r?r.w1:null),
+      upperfence: rows.map(r=>r?r.w2:null),
+      marker:{color}, line:{color}, boxpoints:false, hoveron:'boxes',
+      hovertemplate: `${name} — %{x}<br>Median: %{median:,.1f}<br>Q1: %{q1:,.1f} · Q3: %{q3:,.1f}<extra></extra>`
+    });
+    if(groupBy==='tool'){
+      const cmap = comparePaletteMap(selectedHabitats);
+      return selectedHabitats.map(h=>
+        box(h, cmap[h], toolLabels, tools.map(t=>summaryData.find(d=>d.habitat===h && d.tool===t))));
+    }
+    const cmap = comparePaletteMap(tools);
+    return tools.map(t=>
+      box(TOOL_LABEL[t]||t, cmap[t], selectedHabitats,
+          selectedHabitats.map(h=>summaryData.find(d=>d.habitat===h && d.tool===t))));
+  }
+
+  function drawBox(elId, summaryData, yTitle){
+    plot(elId, boxTraces(summaryData), {...PLOTLY_LAYOUT_BASE, boxmode:'group', height: chartHeight(),
+      meta:{tsv:{series: groupBy==='tool'?'Habitat':'Tool',
+                 x: groupBy==='tool'?'Tool':'Habitat'}},
+      margin:{t:12,l:70,r:12,b:110},
+      xaxis:{tickangle:-45, automargin:true, tickfont:{size:10}},
+      yaxis:{title:yTitle, gridcolor:'#dde2de', rangemode:'nonnegative'},
+      legend:{orientation:'h', y:-0.28}}, PLOTLY_CONFIG);
+  }
+
+  function drawAll(){
+    drawBox(`${P}abundance-box`, DATA.abundance_summary, 'Relative abundance (reads/million)');
+    drawBox(`${P}richness-box`, DATA.richness_summary, 'Richness');
+  }
+
+  makeCheckList(document.getElementById(`${P}habitat-select`),
+    allHabitats.map(h=>({value:h,label:h})), selectedHabitats,
+    (vals)=>{selectedHabitats = vals; drawAll();}, {min:1});
+
+  chipToggle(document.getElementById(`${P}pipeline-chips`),
+    basicTools.map(t=>({value:t,label:TOOL_LABEL[t]||t})), selectedPipelines,
+    (vals)=>{selectedPipelines = vals; drawAll();}, {min:1});
+
+  makeSelect(document.getElementById(`${P}groupby-select`),
+    [{value:'tool', label:'Pipeline, then habitat'},
+     {value:'habitat', label:'Habitat, then pipeline'}],
+    groupBy, false, (v)=>{groupBy=v; drawAll();});
+
+  makeSelect(document.getElementById(`${P}deeparg-identity`),
+    [{value:'DeepARG',label:'No threshold'},{value:'DeepARG70',label:'≥70%'},
+     {value:'DeepARG80',label:'≥80%'},{value:'DeepARG90',label:'≥90%'}],
+    deepargLevel, false, (v)=>{deepargLevel=v; drawAll();});
+
+  makeSelect(document.getElementById(`${P}rgi-identity`),
+    [{value:'RGI-DIAMOND',label:'No threshold'},{value:'RGI-DIAMOND70',label:'≥70%'},
+     {value:'RGI-DIAMOND80',label:'≥80%'},{value:'RGI-DIAMOND90',label:'≥90%'}],
+    rgiLevel, false, (v)=>{rgiLevel=v; drawAll();});
+
+  drawAll();
 }
 
 // ---------------------------------------------------------------------------
