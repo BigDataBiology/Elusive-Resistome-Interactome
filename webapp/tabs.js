@@ -345,11 +345,14 @@ function setChosenHabitat(v){
 // section: numbered questions that expand to reveal the answer text.
 // Each entry is either a plain string (numbered "1","2",...) or
 // {title, text} for a custom question label.
-function renderFAQ(container, answers){
+function renderFAQ(container, answers, heading){
   if(!answers.length) return;
   const block = document.createElement('div');
   block.className = 'faq-block';
-  block.innerHTML = `<h3 class="faq-title">Key Takeaways</h3>`;
+  // heading===null explicitly suppresses the block-level H3 (used when a
+  // single standalone dropdown, e.g. "Publications", shouldn't sit under an
+  // extra "Key Takeaways"-style title of its own).
+  if(heading !== null) block.innerHTML = `<h3 class="faq-title">${heading || 'Key Takeaways'}</h3>`;
   answers.forEach((entry,i)=>{
     const isObj = entry !== null && typeof entry === 'object';
     const label = isObj ? entry.title : String(i+1);
@@ -603,6 +606,17 @@ function renderIntroSection(el){
   document.getElementById('intro-continue-btn').addEventListener('click', ()=>navigateTo('global-args'));
 
   drawCitationsChart();
+
+  renderFAQ(el, [{title: "Publications – Contact us if you would like us to consider another publication in the citation's count", text: buildPublicationsList()}], null);
+}
+
+function buildPublicationsList(){
+  const rows = [];
+  Object.entries(CITATION_DOIS).forEach(([tool, dois])=>{
+    const links = dois.map(doi=>`<a href="https://doi.org/${doi}" target="_blank">${doi}</a>`).join(', ');
+    rows.push(`<li>${tool}: ${links}</li>`);
+  });
+  return `<ul>${rows.join('')}</ul>`;
 }
 
 const CITATION_DOIS = {
@@ -611,7 +625,7 @@ const CITATION_DOIS = {
   'ARG-ANNOT':      ['10.1128/aac.01310-13'],
   'AMRFinderPlus':  ['10.1038/s41598-021-91456-0'],
   'DeepARG':        ['10.1186/s40168-018-0401-z'],
-  'MEGARes':        ['10.1093/nar/gkz1010'],
+  'MEGARes':        ['10.1093/nar/gkz1010', '10.1093/nar/gkw1009', '10.1093/nar/gkac1047'],
   'fARGene':        ['10.1186/s40168-017-0353-8', '10.1186/s40168-019-0670-1',
                       '10.1038/s42003-023-05174-6', '10.1099/mgen.0.000770',
                       '10.1186/s12864-017-4064-0', '10.1099/mgen.0.000455']
