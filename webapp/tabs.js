@@ -560,43 +560,31 @@ function renderIntroSection(el){
     <p class="sub">Ten ARG-detection pipelines, run on the same underlying gene catalogue, disagree far more than you'd expect. This explorer lets you interact with the dataset behind
       <em><a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank">"The elusive resistome: a global comparison reveals large discrepancies among detection pipelines"</a></em> (Inda-Díaz et al., bioRxiv 2026). The data has been deposited at <a href="https://doi.org/10.5281/zenodo.19702877" target="_blank">Zenodo</a> (https://doi.org/10.5281/zenodo.19702877)</p>
 
-    <div class="intro-layout">
-      <div class="intro-main">
-        <div class="stat-row">
-          <div class="stat"><div class="n">278.8M</div><div class="l">unigenes screened (<a href="https://gmgc.embl.de/" target="_blank">GMGC v1.0</a>)</div></div>
-          <div class="stat"><div class="n teal">11,519</div><div class="l">metagenomic samples used for abundance &amp; richness</div></div>
-          <div class="stat"><div class="n amber">13</div><div class="l">distinct habitats represented</div></div>
-          <div class="stat"><div class="n">178,107</div><div class="l">unigenes flagged as ARG by ≥1 pipeline</div></div>
-        </div>
+    <div class="stat-row">
+      <div class="stat"><div class="n">278.8M</div><div class="l">unigenes screened (<a href="https://gmgc.embl.de/" target="_blank">GMGC v1.0</a>)</div></div>
+      <div class="stat"><div class="n teal">11,519</div><div class="l">metagenomic samples used for abundance &amp; richness</div></div>
+      <div class="stat"><div class="n amber">13</div><div class="l">distinct habitats represented</div></div>
+      <div class="stat"><div class="n">178,107</div><div class="l">unigenes flagged as ARG by ≥1 pipeline</div></div>
+    </div>
 
-        <div class="card">
-          <h3>Detection pipelines</h3>
-          <p class="desc">Six core tools, each with its own reference database and calling logic.</p>
-          <p class="pipeline-group-label">Alignment-based</p>
-          <ul class="plain">
-            <li>DeepARG v2</li>
-            <li>RGI v6.0.3 (CARD v4.0.0)</li>
-            <li>ResFinder v2.4.0</li>
-            <li>ABRicate v1.0.1 (run against ARGANNOT, MEGARes, CARD, NCBI, ResFinder)</li>
-          </ul>
-          <p class="pipeline-group-label">HMMs-based</p>
-          <ul class="plain">
-            <li>fARGene v0.1</li>
-          </ul>
-          <p class="pipeline-group-label">Alignment- and HMMs-based</p>
-          <ul class="plain">
-            <li>AMRFinderPlus v4.0.15</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="intro-sidebar">
-        <div class="card">
-          <h3 style="font-size:14px;">Citations of core pipeline papers</h3>
-          <p class="desc" style="font-size:11.5px;" id="intro-citations-note">Loading…</p>
-          <div id="intro-citations-chart" class="plotwrap"></div>
-        </div>
-      </div>
+    <div class="card">
+      <h3>Detection pipelines</h3>
+      <p class="desc">Six core tools, each with its own reference database and calling logic.</p>
+      <p class="pipeline-group-label">Alignment-based</p>
+      <ul class="plain">
+        <li>DeepARG v2</li>
+        <li>RGI v6.0.3 (CARD v4.0.0)</li>
+        <li>ResFinder v2.4.0</li>
+        <li>ABRicate v1.0.1 (run against ARGANNOT, MEGARes, CARD, NCBI, ResFinder)</li>
+      </ul>
+      <p class="pipeline-group-label">HMMs-based</p>
+      <ul class="plain">
+        <li>fARGene v0.1</li>
+      </ul>
+      <p class="pipeline-group-label">Alignment- and HMMs-based</p>
+      <ul class="plain">
+        <li>AMRFinderPlus v4.0.15</li>
+      </ul>
     </div>
 
     <div class="wizard-actions">
@@ -604,10 +592,6 @@ function renderIntroSection(el){
     </div>
   `;
   document.getElementById('intro-continue-btn').addEventListener('click', ()=>navigateTo('global-args'));
-
-  drawCitationsChart();
-
-  renderFAQ(el, [{title: "Publications – Contact us if you would like another publication considered for the citation counter", text: buildPublicationsList()}], null);
 }
 
 function buildPublicationsList(){
@@ -649,25 +633,8 @@ function renderCitationRows(byTool){
     .sort((a,b) => a.total - b.total);
 }
 
-function alignCitationsSidebar(){
-  const main = document.querySelector('.intro-main');
-  const sidebarCard = document.querySelector('.intro-sidebar .card');
-  if(!main || !sidebarCard || window.innerWidth <= 820) return;
-  const targetHeight = main.offsetHeight;
-  sidebarCard.style.height = targetHeight + 'px';
-
-  const chartDiv = document.getElementById('intro-citations-chart');
-  const others = Array.from(sidebarCard.children).filter(c => c !== chartDiv);
-  const usedHeight = others.reduce((sum, c) => sum + c.offsetHeight, 0);
-  const style = getComputedStyle(sidebarCard);
-  const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-  const gaps = 12 * Math.max(0, others.length); // approx margin between stacked children
-  const chartHeight = Math.max(160, targetHeight - usedHeight - padding - gaps);
-  Plotly.relayout(chartDiv, {height: chartHeight}).catch(()=>{});
-}
-
 function plotCitations(rows, sourceLabel){
-  plot('intro-citations-chart', [
+  plot('about-citations-chart', [
     {
       type:'bar', orientation:'h', name:'Before 2025',
       y: rows.map(r=>r.tool), x: rows.map(r=>r.before2025),
@@ -687,27 +654,15 @@ function plotCitations(rows, sourceLabel){
     xaxis:{title:'', gridcolor:'#dde2de', tickfont:{size:9.5}, rangemode:'nonnegative'},
     yaxis:{automargin:true, tickfont:{size:10}},
     legend:{orientation:'h', y:-0.22, font:{size:9.5}}
-  }, {...PLOTLY_CONFIG, displayModeBar:false}).then(()=>{
-    requestAnimationFrame(alignCitationsSidebar);
-  });
+  }, {...PLOTLY_CONFIG, displayModeBar:false});
 
-  const note = document.getElementById('intro-citations-note');
+  const note = document.getElementById('about-citations-note');
   if(note) note.textContent = sourceLabel;
 }
 
-let citationsResizeHandler = null;
-
 function drawCitationsChart(){
-  // Show the fallback snapshot immediately so the sidebar never looks empty.
+  // Show the fallback snapshot immediately so the card never looks empty.
   plotCitations(renderCitationRows(CITATION_FALLBACK), 'Google Scholar, as of 14 Apr 2026 (loading live data\u2026)');
-
-  if(citationsResizeHandler) window.removeEventListener('resize', citationsResizeHandler);
-  let resizeTimer;
-  citationsResizeHandler = () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(alignCitationsSidebar, 150);
-  };
-  window.addEventListener('resize', citationsResizeHandler);
 
   // Then try to fetch live counts from OpenAlex and replace it in place.
   const allDois = Object.values(CITATION_DOIS).flat();
@@ -2310,6 +2265,14 @@ function renderAboutSection(el){
     </div>
 
     <div class="card">
+      <h3>Citations of core pipeline papers</h3>
+      <p class="desc" id="about-citations-note">Loading…</p>
+      <div id="about-citations-chart" class="plotwrap"></div>
+    </div>
+
+    <div id="about-pub-list"></div>
+
+    <div class="card">
       <h3>Contacts</h3>
       <ul class="plain">
         <li><strong>Juan Inda Diaz</strong>: <a href="mailto:juan.inda@qut.edu.au">juan.inda@qut.edu.au</a></li>
@@ -2317,4 +2280,9 @@ function renderAboutSection(el){
       </ul>
     </div>
   `;
+
+  drawCitationsChart();
+
+  renderFAQ(document.getElementById('about-pub-list'),
+    [{title: "Publications – Contact us if you would like another publication considered for the citation counter", text: buildPublicationsList()}], null);
 }
