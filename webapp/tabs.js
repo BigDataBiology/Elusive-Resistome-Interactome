@@ -1579,23 +1579,40 @@ function habitatSlug(h){ return h.toLowerCase().replace(/[^a-z0-9]+/g, '_').repl
 async function fetchCorePanManifest(habitat){
   if(CORE_PAN_MANIFEST_CACHE[habitat]) return CORE_PAN_MANIFEST_CACHE[habitat];
   const res = await fetch(`data/core_pan/${habitatSlug(habitat)}.json`);
-  if(!res.ok) throw new Error(`Failed to load manifest for ${habitat}: ${res.status}`);
+  if(!res.ok) throw new Error(`failed to load the sample list for ${habitat} (HTTP ${res.status})`);
   const json = await res.json();
   CORE_PAN_MANIFEST_CACHE[habitat] = json;
   return json;
 }
 
 // Per (habitat, tool) presence data, gzip-compressed -- fetched only when
-// that exact combination is actually run.
-async function fetchCorePanToolData(habitat, tool){
+// that exact combination is actually run. onBytes(loaded, total) is called as
+// the compressed download streams in (total is 0 if the server omits it).
+async function fetchCorePanToolData(habitat, tool, onBytes){
   const key = habitat+'|'+tool;
   if(CORE_PAN_TOOL_CACHE[key]) return CORE_PAN_TOOL_CACHE[key];
+  const label = TOOL_LABEL[tool]||tool;
+  if(typeof DecompressionStream === 'undefined'){
+    throw new Error('this browser cannot decompress the presence data (no DecompressionStream support). '+
+      'Please use a recent version of Chrome, Edge, Firefox or Safari (16.4 or later).');
+  }
   const res = await fetch(`data/core_pan/${habitatSlug(habitat)}__${tool}.json.gz`);
-  if(!res.ok) throw new Error(`Failed to load presence data for ${TOOL_LABEL[tool]||tool} in ${habitat}: ${res.status}`);
-  const ds = new DecompressionStream('gzip');
-  const decompressed = res.body.pipeThrough(ds);
-  const text = await new Response(decompressed).text();
-  const json = JSON.parse(text);
+  if(!res.ok) throw new Error(`failed to load presence data for ${label} in ${habitat} (HTTP ${res.status})`);
+  let body = res.body;
+  if(onBytes){
+    const total = +res.headers.get('Content-Length') || 0;
+    let loaded = 0;
+    body = body.pipeThrough(new TransformStream({
+      transform(chunk, ctl){ loaded += chunk.byteLength; onBytes(loaded, total); ctl.enqueue(chunk); }
+    }));
+  }
+  let json;
+  try{
+    const text = await new Response(body.pipeThrough(new DecompressionStream('gzip'))).text();
+    json = JSON.parse(text);
+  } catch(err){
+    throw new Error(`presence data for ${label} in ${habitat} could not be read (${err.message})`);
+  }
   CORE_PAN_TOOL_CACHE[key] = json;
   return json;
 }
@@ -1626,7 +1643,9 @@ function sampleIndicesWithoutReplacement(n, total){
 
 // Runs N subsample iterations in small chunks (via setTimeout) so the main
 // thread yields and the status text / timer stay live instead of freezing.
-function runCorePanAsync({sampleToGenes, numGenes, numSamples, n, p, N, P}, onProgress, onDone){
+// Any exception thrown mid-run is passed to onError (it would otherwise be
+// lost inside the setTimeout callback and the caller would wait forever).
+function runCorePanAsync({sampleToGenes, numGenes, numSamples, n, p, N, P}, onProgress, onDone, onError){
   const nEff = Math.min(n, numSamples);
   const cnt = new Uint16Array(numGenes);
   const counts = new Uint16Array(numGenes);
@@ -1637,6 +1656,9 @@ function runCorePanAsync({sampleToGenes, numGenes, numSamples, n, p, N, P}, onPr
   const CHUNK = 5;
 
   function step(){
+    try{ stepChunk(); } catch(err){ onError(err); }
+  }
+  function stepChunk(){
     const end = Math.min(iter+CHUNK, N);
     for(; iter<end; iter++){
       counts.fill(0);
@@ -1723,8 +1745,12 @@ function renderPanCore(el, habitat, navKey){
 
     <p id="pc-warning" class="footnote" style="display:none;color:var(--coral);"></p>
 
-    <div class="wizard-actions" style="justify-content:flex-start;gap:14px;">
+    <div class="wizard-actions" style="justify-content:flex-start;align-items:center;gap:14px;flex-wrap:wrap;">
       <button class="btn-primary" id="pc-run-btn">Run →</button>
+      <div id="pc-status" class="run-status" role="status" aria-live="polite" hidden>
+        <div class="run-status-text"></div>
+        <div class="run-status-bar"><div></div></div>
+      </div>
     </div>
 
     <div class="grid2">
@@ -1842,47 +1868,86 @@ function renderPanCore(el, habitat, navKey){
       yaxis:{automargin:true, autorange:'reversed'}}, PLOTLY_CONFIG);
   }
 
+  const statusEl = document.getElementById('pc-status');
+  const statusText = statusEl.querySelector('.run-status-text');
+  const statusBar = statusEl.querySelector('.run-status-bar');
+  const statusFill = statusBar.firstElementChild;
+  // frac in [0,1] shows the progress bar; null hides it (errors, final summary).
+  function setStatus(text, frac, isError){
+    statusEl.hidden = false;
+    statusEl.classList.toggle('error', !!isError);
+    statusText.textContent = text;
+    statusBar.style.display = frac == null ? 'none' : '';
+    if(frac != null) statusFill.style.width = (100*Math.min(1, Math.max(0, frac))).toFixed(1)+'%';
+  }
+  const fmtSecs = ms => (ms/1000).toFixed(1)+' s';
+  const fmtMB = b => (b/1e6).toFixed(1)+' MB';
+  // Let the browser paint the status text before a synchronous chunk of work.
+  const yieldToBrowser = ()=>new Promise(r=>setTimeout(r, 0));
+
   document.getElementById('pc-run-btn').addEventListener('click', async ()=>{
     const btn = document.getElementById('pc-run-btn');
     const originalLabel = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Calculating…';
 
     const tools = toolSet();
     if(tools.length===0){
-      btn.disabled = false;
-      btn.innerHTML = originalLabel;
+      setStatus('Select at least one pipeline to run.', null, true);
       return;
     }
 
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Calculating…';
+    const t0 = performance.now();
+    // The user may navigate away mid-run; stop quietly rather than drawing
+    // into (or reporting on) a page that has since been replaced.
+    const alive = ()=>statusEl.isConnected;
+
     try{
+      setStatus(`Loading sample list for ${habitat}…`, 0);
       const manifest = await fetchCorePanManifest(habitat);
       const numSamples = manifest.samples.length;
       const pFrac = p/100;
+      const bigP = bigPInput.value ? +bigPInput.value : 1;
       const results = [];
 
       for(let ti=0; ti<tools.length; ti++){
+        if(!alive()) return;
         const tool = tools[ti];
+        const prefix = `Pipeline ${ti+1}/${tools.length} (${TOOL_LABEL[tool]||tool})`;
         const geneCount = manifest.tool_gene_counts[tool] || 0;
         if(geneCount === 0){
           results.push({tool, panCount: 0, coreCount: 0});
           continue;
         }
 
-        const toolData = await fetchCorePanToolData(habitat, tool);
+        setStatus(`${prefix}: downloading presence data…`, ti/tools.length);
+        const toolData = await fetchCorePanToolData(habitat, tool, (loaded, total)=>{
+          if(!alive()) return;
+          setStatus(`${prefix}: downloading presence data… ${fmtMB(loaded)}`+(total ? ` of ${fmtMB(total)}` : ''),
+                    ti/tools.length);
+        });
+        if(!alive()) return;
+        setStatus(`${prefix}: preparing data…`, ti/tools.length);
+        await yieldToBrowser();
         const geneList = toolData.genes;
         const sampleToGenes = getTransposed(habitat, tool, numSamples, toolData);
 
-        const result = await new Promise((resolve)=>{
+        const result = await new Promise((resolve, reject)=>{
           runCorePanAsync(
-            {sampleToGenes, numGenes: geneList.length, numSamples, n, p: pFrac, N: bigN, P: bigPInput.value ? +bigPInput.value : 1},
-            ()=>{},
-            resolve
+            {sampleToGenes, numGenes: geneList.length, numSamples, n, p: pFrac, N: bigN, P: bigP},
+            (iter, total)=>{
+              if(!alive()) return;
+              setStatus(`${prefix}: subsample ${iter.toLocaleString()}/${total.toLocaleString()} · `+
+                        `${fmtSecs(performance.now()-t0)} elapsed`,
+                        (ti + iter/total)/tools.length);
+            },
+            resolve, reject
           );
         });
 
         results.push({tool, panCount: Math.round(result.panMean), coreCount: result.coreGeneIndices.length});
       }
+      if(!alive()) return;
 
       const nEff = Math.min(n, numSamples);
 
@@ -1893,11 +1958,16 @@ function renderPanCore(el, habitat, navKey){
         `Mean number of distinct genes present, averaged across ${bigN} subsample${bigN>1?'s':''} of ${nEff} samples each.`;
       document.getElementById('pc-core-desc').textContent = bigN===1
         ? `Genes present in ≥${p}% of the ${nEff} subsampled samples.`
-        : `Genes present in ≥${p}% of a subsample's ${nEff} samples, in at least ${bigPInput.value}/${bigN} subsamples.`;
+        : `Genes present in ≥${p}% of a subsample's ${nEff} samples, in at least ${bigP}/${bigN} subsamples.`;
 
-      btn.disabled = false;
-      btn.innerHTML = originalLabel;
+      setStatus(`Done: ${tools.length} pipeline${tools.length>1?'s':''} in ${habitat}, ${fmtSecs(performance.now()-t0)}.`, null);
     } catch(err){
+      console.error('Pan-/core-resistome calculation failed:', err);
+      if(alive()){
+        const msg = String(err && err.message ? err.message : err).replace(/\.$/, '');
+        setStatus(`Calculation failed: ${msg}.`, null, true);
+      }
+    } finally {
       btn.disabled = false;
       btn.innerHTML = originalLabel;
     }
