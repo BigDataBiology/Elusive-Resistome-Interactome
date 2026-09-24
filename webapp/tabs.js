@@ -1440,21 +1440,21 @@ function renderAbundance(el, habitat, navKey){
     const summary = DATA.abundance_summary.filter(d=>d.habitat===habitat);
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
     plot('ab-abundance-box', boxTrace(summary, jitter, 'abundance'),
-      {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
+      {...PLOTLY_LAYOUT_BASE, height:480, showlegend:false,
        meta:{tsv:{x:'Tool'}},
        yaxis:{title:'Relative abundance (reads/million)', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
-       xaxis:{tickangle:-45}}, PLOTLY_CONFIG);
+       xaxis:{tickangle:-45, automargin:true}}, PLOTLY_CONFIG);
   }
   function drawRichness(){
     const summary = DATA.richness_summary.filter(d=>d.habitat===habitat);
     const jitter = DATA.abundance_jitter_sample.filter(d=>d.habitat===habitat);
     plot('ab-richness-box', boxTrace(summary, jitter, 'richness'),
-      {...PLOTLY_LAYOUT_BASE, height:420, showlegend:false,
+      {...PLOTLY_LAYOUT_BASE, height:480, showlegend:false,
        meta:{tsv:{x:'Tool'}},
        yaxis:{title:'Richness', gridcolor:'#dde2de', rangemode:'nonnegative',
               range: zoomRange(summary, barToolSet())},
-       xaxis:{tickangle:-45}}, PLOTLY_CONFIG);
+       xaxis:{tickangle:-45, automargin:true}}, PLOTLY_CONFIG);
   }
   function drawClassAbundance(){
     const tools = barToolSet();
