@@ -768,17 +768,9 @@ function renderAnalysisSection(el, habitat, navKey){
   let rgiLevel = 'RGI-DIAMOND';   // RGI-DIAMOND | RGI-DIAMOND70/80/90
   let selectedPipelines = [...basicTools];
 
-  function barToolSet(){
-    // swap: the chosen identity level REPLACES the base pipeline
-    return selectedPipelines.map(t=>{
-      if(t==='DeepARG') return deepargLevel;
-      if(t==='RGI-DIAMOND') return rgiLevel;
-      return t;
-    });
-  }
-
   function jaccardToolSet(){
-    // add-alongside, positioned right next to its base pipeline (not appended at the end)
+    // add-alongside, positioned right next to its base pipeline (not appended at the end).
+    // Also used by the ARG-count bar so its rows line up with the Jaccard heatmap.
     const set = [];
     selectedPipelines.forEach(t=>{
       set.push(t);

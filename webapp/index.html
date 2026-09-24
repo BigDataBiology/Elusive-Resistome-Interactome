@@ -336,21 +336,6 @@ async function loadAll(){
 
 function uniq(arr, key){ return [...new Set(arr.map(d=>key?d[key]:d))]; }
 
-function getOrCreateSection(id){
-  let el = document.getElementById(id);
-  if(!el){
-    el = document.createElement('section');
-    el.className = 'flow-section';
-    el.id = id;
-    document.getElementById('flow').appendChild(el);
-  }
-  return el;
-}
-
-function scrollToSection(id){
-  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
-}
-
 loadAll().then(()=>{
   buildToolLookups();
   initApp();
