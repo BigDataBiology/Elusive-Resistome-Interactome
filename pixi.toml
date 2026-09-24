@@ -10,9 +10,9 @@ download    = "./download_data.sh data_zenodo_github"
 unigenes    = "./build_unigenes.py"
 app-data    = "./build_app_data.py"
 core-pan    = "./build_core_pan_data.py"
-serve       = "./serve_webapp.sh"
+serve       = "python -m http.server 8010 -d webapp"
 
-pipeline = { cmd = "./serve_webapp.sh", depends_on = [
+pipeline = { cmd = "python -m http.server 8010 -d webapp", depends-on = [
   "download",
   "unigenes",
   "app-data",

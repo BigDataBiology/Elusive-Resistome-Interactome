@@ -44,7 +44,7 @@ build_unigenes.py     ->  unigenes.tsv                 (per-tool ARG calls, habi
 rarefy_abundances.py  ->  (rarefaction helper, used by build_core_pan_data.py / core_resistome.py)
 build_app_data.py     ->  webapp/data/*.json           (everything the web app needs, except pan/core)
 build_core_pan_data.py -> webapp/data/core_pan/*       (per-habitat/tool presence data, fetched on demand)
-serve_webapp.sh       ->  http://localhost:8010        (serves webapp/)
+pixi run serve        ->  http://localhost:8010        (serves webapp/)
 ```
 
 Run the steps in this order the first time; each script is safe to re-run
@@ -189,13 +189,15 @@ download from the page itself.
 ## 5. Run the web app
 
 ```bash
-./serve_webapp.sh
+pixi run serve
+# or, without pixi:
+python3 -m http.server 8010 -d webapp
 ```
 
 Serves `webapp/` at **http://localhost:8010** (needs `webapp/data/*.json`
 from step 3 to already exist). Open that URL in a browser — it's a static
 site (HTML + JS + JSON, via Plotly), so any static file server works
-equally well if you'd rather not use the provided script.
+equally well.
 
 The app has a collapsible left-hand menu (Introduction / General analysis /
 Habitat level, each with its own submenu) instead of a single scrolling
