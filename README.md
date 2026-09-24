@@ -5,6 +5,37 @@ global comparison reveals large discrepancies among detection pipelines"*
 (Inda-Díaz et al., bioRxiv 2026). Rebuilt from the paper's
 Zenodo data record and VSEARCH clustering output (GitHub).
 
+## Citation
+
+We encourage you to incorporate results from this app (including figures)
+into your own work. If you do, please cite:
+
+> Juan S. Inda-Díaz, Faith Adegoke, Ulrike Löber, Víctor Hugo Jarquín-Díaz,
+> Yiqian Duan, Johan Bengtsson-Palme, Svetlana Ugarcina Perovic, Luis Pedro
+> Coelho (2026). *The elusive resistome: a global comparison reveals large
+> discrepancies among detection pipelines.* bioRxiv 2026.05.11.724158.
+> doi:[10.64898/2026.05.11.724158](https://doi.org/10.64898/2026.05.11.724158)
+
+```bibtex
+@article{IndaDiaz2026,
+    author = {Inda-D{\'\i}az, Juan S. and Adegoke, Faith and L{\"o}ber, Ulrike and Jarqu{\'\i}n-D{\'\i}az, V{\'\i}ctor Hugo and Duan, Yiqian and Bengtsson-Palme, Johan and Ugarcina Perovic, Svetlana and Coelho, Luis Pedro},
+    title = {The elusive resistome: a global comparison reveals large discrepancies among detection pipelines},
+    journal = {bioRxiv},
+    publisher = {Cold Spring Harbor Laboratory},
+    year = {2026},
+    elocation-id = {2026.05.11.724158},
+    doi = {10.64898/2026.05.11.724158},
+    url = {https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1}
+}
+```
+
+BibTeX, RIS, and EndNote files can also be downloaded from the app's
+**About & Contacts** page.
+
+This is currently a preprint. Once the final, peer-reviewed version is
+published, please cite that version instead; we will update this repository
+and the app with the new reference when it becomes available.
+
 ## Overview
 
 ```

@@ -2229,6 +2229,59 @@ function renderTables(el){
 // ---------------------------------------------------------------------------
 // ABOUT & CONTACTS
 // ---------------------------------------------------------------------------
+const PAPER = {
+  title: 'The elusive resistome: a global comparison reveals large discrepancies among detection pipelines',
+  authors: [
+    {family:'Inda-Díaz', given:'Juan S.'},
+    {family:'Adegoke', given:'Faith'},
+    {family:'Löber', given:'Ulrike'},
+    {family:'Jarquín-Díaz', given:'Víctor Hugo'},
+    {family:'Duan', given:'Yiqian'},
+    {family:'Bengtsson-Palme', given:'Johan'},
+    {family:'Ugarcina Perovic', given:'Svetlana'},
+    {family:'Coelho', given:'Luis Pedro'},
+  ],
+  journal: 'bioRxiv',
+  publisher: 'Cold Spring Harbor Laboratory',
+  year: 2026,
+  elocation: '2026.05.11.724158',
+  doi: '10.64898/2026.05.11.724158',
+  url: 'https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1',
+};
+
+// Citation files for PAPER, generated here rather than shipped as static files
+function citationText(format){
+  const p = PAPER;
+  const names = p.authors.map(a => a.family + ', ' + a.given);
+  if(format === 'bib'){
+    const tex = s => s.replace(/í/g, "{\\'\\i}").replace(/ö/g, '{\\"o}');
+    return `@article{IndaDiaz2026,
+\tauthor = {${names.map(tex).join(' and ')}},
+\ttitle = {${p.title}},
+\tjournal = {${p.journal}},
+\tpublisher = {${p.publisher}},
+\tyear = {${p.year}},
+\telocation-id = {${p.elocation}},
+\tdoi = {${p.doi}},
+\turl = {${p.url}}
+}
+`;
+  }
+  if(format === 'ris'){
+    return ['TY  - JOUR', `T1  - ${p.title}`, `JF  - ${p.journal}`, `DO  - ${p.doi}`, `SP  - ${p.elocation}`,
+      ...names.map(n => `AU  - ${n}`), `PY  - ${p.year}`, `UR  - ${p.url}`, 'ER  - ', ''].join('\n');
+  }
+  if(format === 'enw'){
+    return ['%0 Journal Article', ...names.map(n => `%A ${n}`), `%T ${p.title}`, `%D ${p.year}`,
+      `%R ${p.doi}`, `%J ${p.journal}`, `%P ${p.elocation}`, `%U ${p.url}`, ''].join('\n');
+  }
+  throw new Error('unknown citation format: ' + format);
+}
+
+function citationHref(format){
+  return 'data:text/plain;charset=utf-8,' + encodeURIComponent(citationText(format));
+}
+
 function renderAboutSection(el){
   el.innerHTML = `
     <h2>About &amp; Contacts</h2>
@@ -2247,12 +2300,19 @@ function renderAboutSection(el){
 
     <div class="card">
       <h3>Publication</h3>
-      <p class="desc">Inda-Díaz <em>et al.</em> (2026). <em>The elusive resistome: a global comparison reveals
-        large discrepancies among detection pipelines.</em> bioRxiv.</p>
+      <p class="desc">${PAPER.authors.map(a => a.given + ' ' + a.family).join(', ')} (${PAPER.year}).
+        <em>${PAPER.title}.</em> ${PAPER.journal}. doi:<a href="https://doi.org/${PAPER.doi}" target="_blank" rel="noopener">${PAPER.doi}</a></p>
       <ul class="plain">
-        <li>Preprint: <a href="https://www.biorxiv.org/content/10.64898/2026.05.11.724158v1" target="_blank" rel="noopener">biorxiv.org/content/10.64898/2026.05.11.724158v1</a></li>
+        <li>Preprint: <a href="${PAPER.url}" target="_blank" rel="noopener">biorxiv.org/content/10.64898/2026.05.11.724158v1</a></li>
+        <li>Download citation:
+          <a href="${citationHref('bib')}" download="IndaDiaz2026.bib">BibTeX (.bib)</a> &middot;
+          <a href="${citationHref('ris')}" download="IndaDiaz2026.ris">RIS (.ris)</a> &middot;
+          <a href="${citationHref('enw')}" download="IndaDiaz2026.enw">EndNote (.enw)</a></li>
       </ul>
-      <p class="footnote">The full author list and corresponding-author details are given in the preprint.</p>
+      <p class="desc">You are welcome to use results from this explorer (including figures) in your own work,
+        such as papers, presentations, or teaching materials. If you do, please cite the publication above.</p>
+      <p class="footnote">This is currently a preprint. Once the final, peer-reviewed version is published, please cite
+        that version instead; we will update this page with the new reference when it becomes available.</p>
     </div>
 
     <div class="card">
