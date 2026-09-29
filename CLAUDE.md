@@ -25,7 +25,7 @@ pixi run download    # download_data.sh -> data_zenodo_github/
 pixi run unigenes    # build_unigenes.py -> unigenes.tsv
 pixi run app-data    # build_app_data.py -> webapp/data/*.json
 pixi run core-pan    # build_core_pan_data.py -> webapp/data/core_pan/*
-pixi run serve       # serve_webapp.sh -> http://localhost:8010
+pixi run serve       # python -m http.server on webapp/ -> http://localhost:8010
 pixi run pipeline    # runs download->unigenes->app-data->core-pan, then serves
 ```
 
@@ -37,7 +37,7 @@ defaults — see each script's docstring):
 ./build_unigenes.py [data_dir] [output_tsv]
 ./build_app_data.py [data_dir] [unigenes_tsv] [out_dir]
 ./build_core_pan_data.py [data_dir] [unigenes_tsv] [out_dir] [depth] [seed]
-./serve_webapp.sh
+python3 -m http.server 8010 -d webapp
 ```
 
 There are no automated tests, linter, or build step. Verify changes by re-running the

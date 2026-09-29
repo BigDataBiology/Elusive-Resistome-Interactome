@@ -253,6 +253,11 @@
     animation:spin .7s linear infinite;
   }
   @keyframes spin{to{transform:rotate(360deg);}}
+  .run-status{flex:1 1 260px;max-width:520px;font-size:12.5px;color:var(--ink-dim);line-height:1.5;}
+  .run-status[hidden]{display:none;}
+  .run-status.error{color:var(--coral);font-weight:600;}
+  .run-status-bar{height:6px;margin-top:5px;background:var(--panel-2);border:1px solid var(--line);border-radius:3px;overflow:hidden;}
+  .run-status-bar > div{height:100%;width:0;background:var(--teal);transition:width .15s linear;}
   .btn-secondary{
     font-family:'JetBrains Mono',monospace;font-size:13px;background:none;color:var(--ink-dim);
     border:1px solid var(--line);border-radius:6px;padding:12px 22px;cursor:pointer;
@@ -330,21 +335,6 @@ async function loadAll(){
 }
 
 function uniq(arr, key){ return [...new Set(arr.map(d=>key?d[key]:d))]; }
-
-function getOrCreateSection(id){
-  let el = document.getElementById(id);
-  if(!el){
-    el = document.createElement('section');
-    el.className = 'flow-section';
-    el.id = id;
-    document.getElementById('flow').appendChild(el);
-  }
-  return el;
-}
-
-function scrollToSection(id){
-  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
-}
 
 loadAll().then(()=>{
   buildToolLookups();
